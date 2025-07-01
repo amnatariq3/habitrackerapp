@@ -3,17 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:untitled7/Color%20Compound%20class.dart';
 
-/// showCalendarSheet(...)
-/// ----------------------------------------------------------------------
-/// Call this helper to open the bottom-sheet calendar and get a new date.
-///
-/// ```dart
-/// final newDate = await showCalendarSheet(
-///   context,
-///   initialDate: selectedDate,
-/// );
-/// if (newDate != null) setState(() => selectedDate = newDate);
-/// ```
 Future<DateTime?> showCalendarSheet(
     BuildContext context, {
       required DateTime initialDate,
@@ -25,17 +14,12 @@ Future<DateTime?> showCalendarSheet(
     builder: (_) => _CalendarSheet(initialDate: initialDate),
   );
 }
-
-//──────────────────────────────────────────────────────────────────────────
-
 class _CalendarSheet extends StatefulWidget {
   final DateTime initialDate;
   const _CalendarSheet({required this.initialDate});
-
   @override
   State<_CalendarSheet> createState() => _CalendarSheetState();
 }
-
 class _CalendarSheetState extends State<_CalendarSheet> {
   late DateTime _focusedDay;
   late DateTime _selectedDay;
@@ -46,7 +30,6 @@ class _CalendarSheetState extends State<_CalendarSheet> {
     _selectedDay = widget.initialDate;
     _focusedDay  = widget.initialDate;
   }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -86,8 +69,6 @@ class _CalendarSheetState extends State<_CalendarSheet> {
                   ],
                 ),
                 const SizedBox(height: 12),
-
-                //── Calendar ────────────────────────────────────────────────
                 TableCalendar(
                   firstDay: DateTime.utc(2020),
                   lastDay : DateTime.utc(2035),

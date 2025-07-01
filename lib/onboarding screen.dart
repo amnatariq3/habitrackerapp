@@ -1,13 +1,10 @@
-// Flutter Onboarding Screen for Habit Tracker App
-// Connects to Firebase for login navigation
 
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:untitled7/Color%20Compound%20class.dart';
 
 import 'Bottom Navigation Bar.dart';
-import 'Todaypage.dart';
+
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -47,12 +44,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_currentIndex < _pages.length - 1) {
       _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.ease);
     } else {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) =>  MainNavigation()));
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) =>  HomeScreen()));
     }
   }
 
   void _skip() {
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) =>  MainNavigation()));
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) =>  HomeScreen()));
   }
 
   @override

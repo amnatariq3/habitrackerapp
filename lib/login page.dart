@@ -56,7 +56,9 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: const InputDecoration(labelText: 'Email',
+              ),
+
             ),
             const SizedBox(height: 16),
             TextField(

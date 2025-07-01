@@ -47,6 +47,8 @@ dependencies:
   path_provider: any
   shared_preferences: any
   iconsax: any
+  package_info_plus: any
+
 
 
 dev_dependencies:

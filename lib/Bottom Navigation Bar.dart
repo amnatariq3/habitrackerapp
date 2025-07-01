@@ -1,56 +1,54 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:untitled7/timer%20page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-import 'Color Compound class.dart';
-import 'Tasks page.dart';
+// Import your pages
+import 'Setting page.dart';
 import 'Todaypage.dart';
-import 'auth wraper page.dart';
-import 'categories page.dart';
 import 'habits page.dart';
-import 'login page.dart';
-import 'logout page.dart';
-class HabitTrackerApp extends StatelessWidget {
+import 'Tasks page.dart';
+import 'categories page.dart';
+import 'timer page.dart';
+import 'Color Compound class.dart'; // for Appcolors.theme
 
-  const HabitTrackerApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Habit Tracker',
-      theme: ThemeData(primarySwatch: Colors.orange),
-      home: const AuthWrapper(),
-    );
-  }
-}
-
-
-class MainNavigation extends StatefulWidget {
-  const MainNavigation({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<MainNavigation> createState() => _MainNavigationState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
-  int currentIndex = 0;
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
 
-  final pages = const [
+  final List<Widget> _screens = [
     TodayPage(),
     HabitsPage(),
     TasksPage(),
     CategoriesPage(),
     TimerPage(),
+    SettingsPage(),
   ];
 
-  final labels = ["Today", "Habits", "Tasks", "Categories", "Timer"];
+  final List<String> _titles = [
+    'Today',
+    'Habits',
+    'Tasks',
+    'Categories',
+    'Timer',
+    'Settings',
+  ];
 
-  void _onDrawerTap(int index) {
+  void _onSelectDrawer(int index) {
+    if (index >= _screens.length) return; // prevent out-of-range crash
     setState(() {
-      currentIndex = index;
-      Navigator.pop(context); // Close the drawer
+      _selectedIndex = index;
+    });
+    Navigator.pop(context); // Close drawer after selection
+  }
+
+  void _onBottomNavTap(int index) {
+    setState(() {
+      _selectedIndex = index;
     });
   }
 
@@ -58,50 +56,64 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(labels[currentIndex]),
+        title: Text(_titles[_selectedIndex]),
+        backgroundColor: Appcolors.theme,
       ),
 
       drawer: Drawer(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.black,
         child: ListView(
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.orange),
-              child: Text("HabitNow", style: TextStyle(fontSize: 24, color: Colors.white)),
+            DrawerHeader(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("HabitNow",
+                      style: TextStyle(fontSize: 24, color: Appcolors.theme)),
+                  SizedBox(height: 5),
+                  Text("Welcome!",
+                      style: TextStyle(color: Colors.white70)),
+                  Text(
+                    FirebaseAuth.instance.currentUser?.email ?? "Guest",
+                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                  ),
+                ],
+              ),
             ),
-            _drawerItem(Icons.today, "Today", 0),
-            _drawerItem(Icons.star_outline, "Habits", 1),
-            _drawerItem(Icons.check_circle_outline, "Tasks", 2),
-            _drawerItem(Icons.grid_view, "Categories", 3),
-            _drawerItem(Icons.timer_outlined, "Timer", 4),
+            _drawerItem(Icons.today, 'Today', 0),
+            _drawerItem(Icons.star_border, 'Habits', 1),
+            _drawerItem(Icons.check_circle_outline, 'Tasks', 2),
+            _drawerItem(Icons.grid_view, 'Categories', 3),
+            _drawerItem(Icons.timer, 'Timer', 4),
+            _drawerItem(Icons.settings, 'Settings', 5),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text("Logout"),
+              leading: const Icon(Icons.logout, color: Colors.white),
+              title: const Text("Logout", style: TextStyle(color: Colors.white)),
               onTap: () async {
-                LogoutHelper.confirmLogout(context);
-
-
+                await FirebaseAuth.instance.signOut();
+                // Optionally navigate to login page
+                Navigator.of(context).popUntil((route) => route.isFirst);
               },
             ),
           ],
         ),
       ),
 
-      body: pages[currentIndex],
+      body: _screens[_selectedIndex],
 
       bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: currentIndex,
-        selectedItemColor: Appcolors.subtheme,
+        currentIndex: _selectedIndex > 4 ? 0 : _selectedIndex,
+        onTap: _onBottomNavTap,
+        selectedItemColor: Appcolors.theme,
         unselectedItemColor: Colors.grey,
-        onTap: (index) => setState(() => currentIndex = index),
+        type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.today), label: "Today"),
-          BottomNavigationBarItem(icon: Icon(Icons.star_outline), label: "Habits"),
-          BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: "Tasks"),
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: "Categories"),
-          BottomNavigationBarItem(icon: Icon(Icons.timer_outlined), label: "Timer"),
+          BottomNavigationBarItem(icon: Icon(Icons.today), label: 'Today'),
+          BottomNavigationBarItem(icon: Icon(Icons.star_border), label: 'Habits'),
+          BottomNavigationBarItem(icon: Icon(Icons.check), label: 'Tasks'),
+          BottomNavigationBarItem(icon: Icon(Icons.category), label: 'Categories'),
+          BottomNavigationBarItem(icon: Icon(Icons.timer), label: 'Timer'),
         ],
       ),
     );
@@ -109,11 +121,11 @@ class _MainNavigationState extends State<MainNavigation> {
 
   ListTile _drawerItem(IconData icon, String title, int index) {
     return ListTile(
-      leading: Icon(icon, color: Colors.black),
-      title: Text(title),
-      selected: currentIndex == index,
-      selectedTileColor: Colors.orange.withOpacity(0.2),
-      onTap: () => _onDrawerTap(index),
+      leading: Icon(icon, color: Colors.white),
+      title: Text(title, style: const TextStyle(color: Colors.white)),
+      selected: _selectedIndex == index,
+      selectedTileColor: Colors.orange.withOpacity(0.3),
+      onTap: () => _onSelectDrawer(index),
     );
   }
 }
