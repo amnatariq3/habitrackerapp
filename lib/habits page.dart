@@ -1,131 +1,142 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:untitled7/Color%20Compound%20class.dart';
+import 'Activity type page.dart';
 
 class HabitsPage extends StatefulWidget {
   const HabitsPage({super.key});
 
   @override
-  _HabitsPageState createState() => _HabitsPageState();
+  State<HabitsPage> createState() => _HabitsPageState();
 }
 
 class _HabitsPageState extends State<HabitsPage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final TextEditingController _habitController = TextEditingController();
-  String? _userId;
+  final firestore = FirebaseFirestore.instance;
+  late String userId;
 
   @override
   void initState() {
     super.initState();
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      _userId = user.uid;
+      userId = user.uid;
     } else {
-      debugPrint("⚠️ No user is currently logged in.");
-      // Optionally redirect to login page
+      // optionally handle not logged-in state
     }
   }
 
-  @override
-  void dispose() {
-    _habitController.dispose();
-    super.dispose();
-  }
+  Future<List<QueryDocumentSnapshot>> fetchHabits() async {
+    final query = await firestore
+        .collection('habits')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .get();
 
-  Future<void> _addHabit() async {
-    final text = _habitController.text.trim();
-    if (text.isEmpty || _userId == null) return;
-
-    await _firestore.collection('habits').add({
-      'userId': _userId,
-      'habit': text,
-      'completed': false,
-      'createdAt': Timestamp.now(),
-    });
-
-    _habitController.clear();
-  }
-
-  Future<void> _deleteHabit(DocumentSnapshot doc) async {
-    await _firestore.collection('habits').doc(doc.id).delete();
-  }
-
-  Future<void> _toggleCompletion(DocumentSnapshot doc) async {
-    await _firestore.collection('habits').doc(doc.id).update({
-      'completed': !(doc['completed'] as bool),
-    });
+    return query.docs;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_userId == null) {
-      return const Scaffold(
-        body: Center(child: Text("Please log in to view your habits.")),
-      );
-    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Your Habits")),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: TextField(
-              controller: _habitController,
-              decoration: InputDecoration(
-                hintText: 'New Habit',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: _addHabit,
-                ),
-              ),
-              onSubmitted: (_) => _addHabit(),
-            ),
-          ),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _firestore
-                  .collection('habits')
-                  .where('userId', isEqualTo: _userId)
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+      backgroundColor: Colors.black,
+      body: FutureBuilder<List<QueryDocumentSnapshot>>(
+        future: fetchHabits(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text("No habits yet. Add one above."));
-                }
+          final habits = snapshot.data ?? [];
 
-                final docs = snapshot.data!.docs;
-
-                return ListView.builder(
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    return ListTile(
-                      title: Text(doc['habit']),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Checkbox(
-                            value: doc['completed'],
-                            onChanged: (_) => _toggleCompletion(doc),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () => _deleteHabit(doc),
-                          ),
-                        ],
+          if (habits.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Icon(
+                        Icons.emoji_events,
+                        size: 100,
+                        color: isDark ? Colors.orange : Colors.deepOrange,
                       ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+                      Positioned(
+                        bottom: 10,
+                        right: 10,
+                        child: GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) =>  ActivityTypePage()),
+                          ),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.green,
+                            ),
+                            padding: const EdgeInsets.all(4),
+                            child: const Icon(Icons.add, color: Colors.white, size: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text('There are no active habits',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 10),
+                  Text(
+                    "It's always a good day for a new start",
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: habits.length,
+            itemBuilder: (_, i) {
+              final doc = habits[i];
+              final data = doc.data() as Map<String, dynamic>;
+
+              final title = data['title'] ??
+                  data['habitName'] ??
+                  'Untitled Habit'; // fallback value
+
+              return Card(
+                color: Colors.grey[900],
+                child: ListTile(
+                  title: Text(title, style: const TextStyle(color: Colors.white)),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                    onPressed: () async {
+                      await firestore.collection('habits').doc(doc.id).delete();
+                      setState(() {}); // refresh list
+                    },
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Appcolors.subtheme,
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) =>  ActivityTypePage()),
+          );
+        },
+        child: const Icon(Icons.add),
       ),
     );
   }

@@ -14,7 +14,12 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLogin = true;
   bool _loading = false;
 
+  final _formKey = GlobalKey<FormState>();
+
   Future<void> _authenticate() async {
+    FocusScope.of(context).unfocus(); // hide keyboard
+    if (!_formKey.currentState!.validate()) return;
+
     setState(() => _loading = true);
 
     try {
@@ -30,8 +35,20 @@ class _LoginPageState extends State<LoginPage> {
         );
       }
     } on FirebaseAuthException catch (e) {
+      String message = "Authentication failed";
+
+      if (e.code == 'user-not-found') {
+        message = "No user found for that email.";
+      } else if (e.code == 'wrong-password') {
+        message = "Wrong password provided.";
+      } else if (e.code == 'email-already-in-use') {
+        message = "This email is already registered.";
+      } else if (e.code == 'weak-password') {
+        message = "The password is too weak.";
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Authentication failed")),
+        SnackBar(content: Text(message)),
       );
     } finally {
       setState(() => _loading = false);
@@ -51,35 +68,56 @@ class _LoginPageState extends State<LoginPage> {
       appBar: AppBar(title: Text(_isLogin ? 'Login' : 'Register')),
       body: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email',
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(labelText: 'Email'),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return "Email is required";
+                  }
+                  if (!value.contains('@')) {
+                    return "Invalid email address";
+                  }
+                  return null;
+                },
               ),
-
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Password'),
-            ),
-            const SizedBox(height: 24),
-            _loading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-              onPressed: _authenticate,
-              child: Text(_isLogin ? 'Login' : 'Register'),
-            ),
-            TextButton(
-              onPressed: () => setState(() => _isLogin = !_isLogin),
-              child: Text(_isLogin
-                  ? "Don't have an account? Register"
-                  : "Already have an account? Login"),
-            )
-          ],
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Password'),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return "Password is required";
+                  }
+                  if (value.length < 6) {
+                    return "Password must be at least 6 characters";
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              _loading
+                  ? const CircularProgressIndicator()
+                  : ElevatedButton(
+                onPressed: _authenticate,
+                child: Text(_isLogin ? 'Login' : 'Register'),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _isLogin = !_isLogin),
+                child: Text(
+                  _isLogin
+                      ? "Don't have an account? Register"
+                      : "Already have an account? Login",
+                ),
+              )
+            ],
+          ),
         ),
       ),
     );

@@ -48,6 +48,7 @@ dependencies:
   shared_preferences: any
   iconsax: any
   package_info_plus: any
+  flutter_colorpicker: ^1.0.3
 
 
 

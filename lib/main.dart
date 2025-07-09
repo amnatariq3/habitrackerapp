@@ -1,25 +1,14 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
-import 'package:hive_flutter/adapters.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'Bottom Navigation Bar.dart';
 import 'auth wraper page.dart';
-import 'firebase_options.dart';
-import 'onboarding screen.dart';
-
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Web Initialization
+  // Initialize Firebase
   if (kIsWeb) {
     await Firebase.initializeApp(
       options: const FirebaseOptions(
@@ -32,28 +21,61 @@ void main() async {
       ),
     );
   } else {
-    // Mobile initialization
     await Firebase.initializeApp();
   }
 
-  // Hive init
-  await Hive.initFlutter();
-  await Hive.openBox('habitBox');
+  // Load saved theme preference
+  final prefs = await SharedPreferences.getInstance();
+  final isDark = prefs.getBool('darkMode') ?? false;
 
-  runApp(const MyApp());
+  runApp(MyApp(isDarkMode: isDark));
 }
 
+class MyApp extends StatefulWidget {
+  final bool isDarkMode;
+  const MyApp({super.key, required this.isDarkMode});
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late ThemeMode _themeMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _themeMode = widget.isDarkMode ? ThemeMode.dark : ThemeMode.light;
+  }
+
+  void _toggleTheme(bool isDark) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('darkMode', isDark);
+    setState(() {
+      _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'Habit Tracker',
-      theme: ThemeData(primarySwatch: Colors.orange),
-      home: const AuthWrapper(), // or use AuthWrapper if needed
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        brightness: Brightness.light,
+        primarySwatch: Colors.orange,
+        scaffoldBackgroundColor: Colors.white,
+      ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        primarySwatch: Colors.deepOrange,
+        scaffoldBackgroundColor: Colors.black,
+      ),
+      themeMode: _themeMode,
+      home: AuthWrapper(
+        isDarkMode: _themeMode == ThemeMode.dark,
+        onThemeToggle: _toggleTheme,
+      ),
     );
   }
 }

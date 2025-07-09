@@ -1,17 +1,28 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 // Import your pages
-import 'Setting page.dart';
 import 'Todaypage.dart';
+import 'calendar page.dart';
+import 'category picker page.dart';
 import 'habits page.dart';
 import 'Tasks page.dart';
 import 'categories page.dart';
 import 'timer page.dart';
-import 'Color Compound class.dart'; // for Appcolors.theme
+import 'Setting page.dart';
+import 'Color Compound class.dart'; // Make sure this defines Appcolors.theme
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool isDarkMode;
+  final void Function(bool) onThemeToggle;
+
+  const HomeScreen({
+    super.key,
+    required this.isDarkMode,
+    required this.onThemeToggle,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -20,14 +31,39 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [
-    TodayPage(),
-    HabitsPage(),
-    TasksPage(),
-    CategoriesPage(),
-    TimerPage(),
-    SettingsPage(),
-  ];
+  late final List<Widget> _screens;
+  final firestore = FirebaseFirestore.instance;
+  late String userId;
+
+  DateTime selectedDay = DateTime.now();
+  String get selectedDateStr => DateFormat('yyyy-MM-dd').format(selectedDay);
+  @override
+  void initState() {
+    super.initState();
+
+    // Initialize user ID
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      userId = user.uid;
+    } else {
+      // Handle unauthenticated user
+      // You can navigate to login screen or show error
+    }
+
+    // Initialize screens
+    _screens = [
+      TodayPage(),
+      HabitsPage(),
+      TasksPage(),
+      CategoriesPage(),
+      TimerPage(),
+      SettingsPage(
+        isDarkMode: widget.isDarkMode,
+        onThemeToggle: widget.onThemeToggle,
+      ),
+    ];
+  }
+
 
   final List<String> _titles = [
     'Today',
@@ -37,19 +73,185 @@ class _HomeScreenState extends State<HomeScreen> {
     'Timer',
     'Settings',
   ];
-
-  void _onSelectDrawer(int index) {
-    if (index >= _screens.length) return; // prevent out-of-range crash
+  void _onTap(int index) {
     setState(() {
       _selectedIndex = index;
     });
-    Navigator.pop(context); // Close drawer after selection
+  }
+
+  /// This function provides different icons for each page
+  List<Widget> _getAppBarActions() {
+    switch (_selectedIndex) {
+      case 0: // Today Page
+        return [
+          IconButton(icon: Icon(Icons.search), onPressed: () => _showSearchDialog(context),),
+          IconButton(icon: Icon(Icons.filter_list),onPressed: () => _showFilterOptionsDialog(context)),
+          IconButton(icon: Icon(Icons.calendar_today), onPressed: () async {
+            final picked = await showCalendarSheet(context, initialDate: selectedDay);
+            if (picked != null) {
+              setState(() => selectedDay = picked);
+            }
+          },),
+        ];
+      case 1: // Habits Page
+        return [
+          IconButton(icon: Icon(Icons.search), onPressed: () => _showSearchDialog(context),),
+          IconButton(icon: Icon(Icons.filter_list),  onPressed: () => _showFilterOptionsDialog(context),),
+          IconButton(icon: Icon(Icons.archive_outlined), onPressed: () =>_showArchiveDialog(context)),
+        ];
+      case 2: // Tasks Page
+        return [
+          IconButton(icon: Icon(Icons.search), onPressed: () => _showSearchDialog(context),),
+          IconButton(icon: Icon(Icons.filter_list), onPressed: () => _showFilterOptionsDialog(context),),
+          IconButton(icon: Icon(Icons.archive_outlined), onPressed: () =>_showArchiveDialog(context)),
+        ];
+      case 3: // Categories Page
+        return [
+          IconButton(icon: Icon(Icons.category), onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CategoryPickerPage(userId: userId),
+              ),
+            );
+          }),
+        ];
+      case 4: // Timer Page
+        return [
+          IconButton(icon: Icon(Icons.timer), onPressed: () {}),
+        ];
+      default:
+        return [];
+    }
+  }
+
+
+  void _onSelectDrawer(int index) {
+    if (index >= _screens.length) return;
+    setState(() => _selectedIndex = index);
+    Navigator.pop(context); // close drawer
   }
 
   void _onBottomNavTap(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
+  }
+  void _showFilterOptionsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Theme.of(context).dialogBackgroundColor,
+        title: const Text("Filter Options"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Container(
+                decoration: BoxDecoration(
+                  color: Appcolors.subtheme,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: const Text(
+                  'All',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.playlist_add),
+              title: const Text('New list'),
+              onTap: () {
+                Navigator.pop(context);
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text("New List"),
+                    content: const Text("Create a new habit list here."),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Close"),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.tune),
+              title: const Text('Filters'),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Filter menu coming soon")),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.help_outline),
+              title: const Text('Help'),
+              onTap: () {
+                Navigator.pop(context);
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text("Help"),
+                    content: const Text("Here's how to use the app..."),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Got it"),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  void _showSearchDialog(BuildContext context) {
+    final TextEditingController _searchController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Search"),
+        content: TextField(
+          controller: _searchController,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Enter search keyword'),
+          onChanged: (value) {
+            // TODO: Filter your list based on keyword (implement inside your screen logic)
+            print('Search for: $value');
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+  void _showArchiveDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Archived Items"),
+        content: const Text("Here you can see or restore archived items."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -58,8 +260,10 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
         backgroundColor: Appcolors.theme,
-      ),
+        actions:
+         _getAppBarActions(),
 
+      ),
       drawer: Drawer(
         backgroundColor: Colors.black,
         child: ListView(
@@ -68,14 +272,12 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("HabitNow",
-                      style: TextStyle(fontSize: 24, color: Appcolors.theme)),
-                  SizedBox(height: 5),
-                  Text("Welcome!",
-                      style: TextStyle(color: Colors.white70)),
+                  Text("HabitNow", style: TextStyle(fontSize: 24, color: Appcolors.theme)),
+                  const SizedBox(height: 5),
+                  const Text("Welcome!", style: TextStyle(color: Colors.white70)),
                   Text(
                     FirebaseAuth.instance.currentUser?.email ?? "Guest",
-                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                    style: const TextStyle(color: Colors.white60, fontSize: 12),
                   ),
                 ],
               ),
@@ -92,16 +294,13 @@ class _HomeScreenState extends State<HomeScreen> {
               title: const Text("Logout", style: TextStyle(color: Colors.white)),
               onTap: () async {
                 await FirebaseAuth.instance.signOut();
-                // Optionally navigate to login page
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
             ),
           ],
         ),
       ),
-
       body: _screens[_selectedIndex],
-
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex > 4 ? 0 : _selectedIndex,
         onTap: _onBottomNavTap,

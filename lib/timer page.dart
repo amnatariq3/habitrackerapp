@@ -9,72 +9,91 @@ class TimerPage extends StatefulWidget {
 }
 
 class _TimerPageState extends State<TimerPage> {
-  int _seconds = 0;
-  late Timer _timer;
+  static const int defaultSeconds = 1500; // 25 minutes
+  int _seconds = defaultSeconds;
+  Timer? _timer;
   bool _isRunning = false;
 
   void _startTimer() {
-    _isRunning = true;
+    if (_isRunning) return;
+
+    setState(() => _isRunning = true);
+
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+
       setState(() {
-        if (_seconds == 0) {
-          _timer.cancel();
-          _isRunning = false;
-        } else {
+        if (_seconds > 0) {
           _seconds--;
+        } else {
+          _stopTimer();
         }
       });
     });
   }
 
   void _stopTimer() {
-    _timer.cancel();
-    setState(() {
-      _isRunning = false;
-    });
+    _timer?.cancel();
+    setState(() => _isRunning = false);
   }
 
   void _resetTimer() {
-    _timer.cancel();
+    _timer?.cancel();
     setState(() {
-      _seconds = 1500; // Default 25 minutes for Pomodoro
+      _seconds = defaultSeconds;
       _isRunning = false;
     });
   }
 
   @override
-  void initState() {
-    super.initState();
-    _seconds = 1500; // Default time set to 25 minutes
+  void dispose() {
+    _timer?.cancel(); // Prevent memory leak
+    super.dispose();
   }
 
   String get formattedTime {
-    int minutes = _seconds ~/ 60;
-    int seconds = _seconds % 60;
+    final minutes = _seconds ~/ 60;
+    final seconds = _seconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Pomodoro Timer')),
+      appBar: AppBar(
+        title: const Text('Pomodoro Timer'),
+        backgroundColor: isDark ? Colors.black : Colors.deepOrange,
+      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
               formattedTime,
-              style: const TextStyle(fontSize: 72, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 72,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black,
+              ),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _isRunning ? _stopTimer : _startTimer,
-              child: Text(_isRunning ? 'Stop' : 'Start'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _resetTimer,
-              child: const Text('Reset'),
+            const SizedBox(height: 30),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  icon: Icon(_isRunning ? Icons.pause : Icons.play_arrow),
+                  label: Text(_isRunning ? 'Pause' : 'Start'),
+                  onPressed: _isRunning ? _stopTimer : _startTimer,
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.replay),
+                  label: const Text('Reset'),
+                  onPressed: _resetTimer,
+                ),
+              ],
             ),
           ],
         ),

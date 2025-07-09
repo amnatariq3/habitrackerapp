@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'Color Compound class.dart'; //  <-  must define Appcolors.theme & Appcolors.subtheme
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  final bool isDarkMode;
+  final Function(bool) onThemeToggle;
+
+  const SettingsPage({
+    super.key,
+    required this.isDarkMode,
+    required this.onThemeToggle,
+  });
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  bool _isDarkMode = false;
   bool _notificationsEnabled = true;
-  String _appVersion = 'Loading…';
+  String _appVersion = 'Loading...';
 
   @override
   void initState() {
@@ -21,27 +26,21 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadVersionInfo();
   }
 
-  /*────────────────────────  Helpers  ────────────────────────*/
-
   Future<void> _loadVersionInfo() async {
     try {
       final info = await PackageInfo.fromPlatform();
       if (!mounted) return;
-      setState(() => _appVersion = '${info.version} (${info.buildNumber})');
+      setState(() => _appVersion = "${info.version} (${info.buildNumber})");
     } catch (_) {
-      if (!mounted) return;
-      setState(() => _appVersion = 'Unknown');
+      setState(() => _appVersion = "Unknown");
     }
   }
 
-  Future<void> _logout() async {
+  void _logout() async {
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
-    // TODO: adjust route name if you use a different login page
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
   }
-
-  /*────────────────────────  Build  ──────────────────────────*/
 
   @override
   Widget build(BuildContext context) {
@@ -49,55 +48,64 @@ class _SettingsPageState extends State<SettingsPage> {
     final email = user?.email ?? 'Not logged in';
 
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: Appcolors.theme,
+        backgroundColor: Colors.grey[900],
+        title: const Text("Settings"),
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
           ListTile(
             leading: const CircleAvatar(
               backgroundColor: Colors.orange,
               child: Icon(Icons.person, color: Colors.white),
             ),
-            title: const Text('User Profile', style: TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(email),
+            title: const Text("User Profile", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+            subtitle: Text(email, style: const TextStyle(color: Colors.white70)),
           ),
-          const Divider(),
+          const Divider(color: Colors.white12),
 
+          // 🔄 Dark Mode Toggle
           SwitchListTile(
-            title: const Text('Dark Mode'),
-            value: _isDarkMode,
-            activeColor: Appcolors.theme,
-            onChanged: (v) => setState(() => _isDarkMode = v),
+            title: const Text("Dark Mode", style: TextStyle(color: Colors.white)),
+            value: widget.isDarkMode,
+            activeColor: Colors.orange,
+            onChanged: widget.onThemeToggle,
           ),
 
+          // 🔔 Notification Toggle
           SwitchListTile(
-            title: const Text('Enable Notifications'),
+            title: const Text("Enable Notifications", style: TextStyle(color: Colors.white)),
             value: _notificationsEnabled,
-            activeColor: Appcolors.theme,
-            onChanged: (v) => setState(() => _notificationsEnabled = v),
+            activeColor: Colors.orange,
+            onChanged: (v) {
+              setState(() => _notificationsEnabled = v);
+              // Optional: Save to preferences
+            },
           ),
 
           ListTile(
-            leading: const Icon(Icons.lock_outline),
-            title: const Text('Change Password'),
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Password reset not implemented.')),
-            ),
+            leading: const Icon(Icons.lock_outline, color: Colors.white),
+            title: const Text("Change Password", style: TextStyle(color: Colors.white)),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Password reset not implemented.")),
+              );
+            },
           ),
 
           ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Logout'),
+            leading: const Icon(Icons.logout, color: Colors.white),
+            title: const Text("Logout", style: TextStyle(color: Colors.white)),
             onTap: _logout,
           ),
 
-          const Divider(),
+          const Divider(color: Colors.white12),
+
           ListTile(
-            title: const Text('App Version'),
-            subtitle: Text(_appVersion),
+            title: const Text("App Version", style: TextStyle(color: Colors.white70)),
+            subtitle: Text(_appVersion, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
