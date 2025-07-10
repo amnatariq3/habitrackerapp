@@ -4,9 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 
 // Import your pages
+import 'Customize drawer page.dart';
+import 'Rate this up alert dialogue.dart';
 import 'Todaypage.dart';
+import 'backup drawer page.dart';
 import 'calendar page.dart';
 import 'category picker page.dart';
+import 'contact us drawer page.dart';
 import 'habits page.dart';
 import 'Tasks page.dart';
 import 'categories page.dart';
@@ -61,6 +65,9 @@ class _HomeScreenState extends State<HomeScreen> {
         isDarkMode: widget.isDarkMode,
         onThemeToggle: widget.onThemeToggle,
       ),
+      CustomizePage(),
+      BackupPage(),
+
     ];
   }
 
@@ -72,6 +79,8 @@ class _HomeScreenState extends State<HomeScreen> {
     'Categories',
     'Timer',
     'Settings',
+    'Customize'
+    'Backup'
   ];
   void _onTap(int index) {
     setState(() {
@@ -127,10 +136,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
   void _onSelectDrawer(int index) {
-    if (index >= _screens.length) return;
-    setState(() => _selectedIndex = index);
-    Navigator.pop(context); // close drawer
+    Navigator.pop(context); // close the drawer
+
+    if (index == 6) {
+      // Customize
+      Navigator.push(context, MaterialPageRoute(builder: (context)=>CustomizePage())
+      );
+    } else if (index == 7) {
+      // 🔁 Backup → navigate to BackupPage
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => BackupPage()),
+      );
+    } else if (index == 8) {
+      // Rate this app
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        showFeedbackDialog(context, user.uid);
+      }
+    } else if (index == 9) {
+      // Contact us
+      Navigator.push(context, MaterialPageRoute(builder: (context)=>contactusPage())
+      );
+    } else if (index < _screens.length) {
+      setState(() => _selectedIndex = index);
+    }
   }
+
 
   void _onBottomNavTap(int index) {
     setState(() => _selectedIndex = index);
@@ -288,6 +320,10 @@ class _HomeScreenState extends State<HomeScreen> {
             _drawerItem(Icons.grid_view, 'Categories', 3),
             _drawerItem(Icons.timer, 'Timer', 4),
             _drawerItem(Icons.settings, 'Settings', 5),
+            _drawerItem(Icons.dashboard_customize, 'Customize', 6),
+            _drawerItem(Icons.backup_outlined, 'Backup', 7),
+            _drawerItem(Icons.rate_review_outlined, 'Rate this app', 8),
+            _drawerItem(Icons.contacts_outlined, 'Contact us', 9),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.white),
@@ -302,9 +338,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex > 4 ? 0 : _selectedIndex,
-        onTap: _onBottomNavTap,
-        selectedItemColor: Appcolors.theme,
+          currentIndex: _selectedIndex > 4 ? 0 : _selectedIndex,
+          onTap: (index) => setState(() => _selectedIndex = index),
+
+      selectedItemColor: Appcolors.theme,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
         items: const [

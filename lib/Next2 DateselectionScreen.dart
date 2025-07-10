@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'Bottom Navigation Bar.dart';
 import 'Color Compound class.dart';
+
 
 class DateSelectionScreen extends StatefulWidget {
   final String habitName;
@@ -42,14 +44,12 @@ class _DateSelectionScreenState extends State<DateSelectionScreen> {
   }
 
   Future<void> pickDate({required bool isStart}) async {
-    DateTime now = DateTime.now();
     DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isStart ? (startDate ?? now) : (endDate ?? now),
+      initialDate: isStart ? (startDate ?? DateTime.now()) : (endDate ?? DateTime.now()),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-
     if (picked != null) {
       setState(() {
         if (isStart) {
@@ -87,7 +87,6 @@ class _DateSelectionScreenState extends State<DateSelectionScreen> {
 
   Future<void> saveToFirestore() async {
     final user = FirebaseAuth.instance.currentUser;
-
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("You must be logged in to save")),
@@ -97,13 +96,13 @@ class _DateSelectionScreenState extends State<DateSelectionScreen> {
 
     final doc = {
       'userId': user.uid,
-      'habitName': widget.habitName,
+      'title': widget.habitName, // ✅ Used "title" to avoid Firestore crash
       'description': widget.description,
       'frequency': widget.frequency,
-      'condition': widget.condition,
-      'goal': widget.goal,
-      'unit': widget.unit,
-      'time': widget.time,
+      'condition': widget.condition ?? "",
+      'goal': widget.goal ?? "",
+      'unit': widget.unit ?? "",
+      'time': widget.time ?? "",
       'priority': priority,
       'reminders': reminders,
       'startDate': startDate?.toIso8601String(),
@@ -117,12 +116,53 @@ class _DateSelectionScreenState extends State<DateSelectionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Habit saved successfully!")),
       );
-      Navigator.popUntil(context, (route) => route.isFirst);
+      // ✅ Go back to home screen
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HomeScreen(
+            isDarkMode: Theme.of(context).brightness == Brightness.dark,
+            onThemeToggle: (value) {}, // You can connect it to your actual logic if needed
+          ),
+        ),
+            (route) => false,
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error saving: $e")),
       );
     }
+  }
+
+  Widget buildTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    VoidCallback? onTap,
+    bool enabled = true,
+  }) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Opacity(
+        opacity: enabled ? 1.0 : 0.5,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.grey[900],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: Appcolors.subtheme),
+              const SizedBox(width: 16),
+              Expanded(child: Text(label, style: const TextStyle(color: Colors.white))),
+              Text(value, style: TextStyle(color: Appcolors.subtheme)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -206,37 +246,6 @@ class _DateSelectionScreenState extends State<DateSelectionScreen> {
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget buildTile({
-    required IconData icon,
-    required String label,
-    required String value,
-    VoidCallback? onTap,
-    bool enabled = true,
-  }) {
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: Opacity(
-        opacity: enabled ? 1.0 : 0.5,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.grey[900],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: Appcolors.subtheme),
-              const SizedBox(width: 16),
-              Expanded(child: Text(label, style: const TextStyle(color: Colors.white))),
-              Text(value, style: TextStyle(color: Appcolors.subtheme)),
-            ],
-          ),
         ),
       ),
     );

@@ -21,8 +21,6 @@ class _HabitsPageState extends State<HabitsPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       userId = user.uid;
-    } else {
-      // optionally handle not logged-in state
     }
   }
 
@@ -70,7 +68,9 @@ class _HabitsPageState extends State<HabitsPage> {
                         child: GestureDetector(
                           onTap: () => Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) =>  ActivityTypePage()),
+                            MaterialPageRoute(
+                              builder: (_) =>  ActivityTypePage(),
+                            ),
                           ),
                           child: Container(
                             decoration: const BoxDecoration(
@@ -78,15 +78,21 @@ class _HabitsPageState extends State<HabitsPage> {
                               color: Colors.green,
                             ),
                             padding: const EdgeInsets.all(4),
-                            child: const Icon(Icons.add, color: Colors.white, size: 16),
+                            child: const Icon(
+                              Icons.add,
+                              color: Colors.white,
+                              size: 16,
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
-                  Text('There are no active habits',
-                      style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'There are no active habits',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white),
+                  ),
                   const SizedBox(height: 10),
                   Text(
                     "It's always a good day for a new start",
@@ -105,21 +111,24 @@ class _HabitsPageState extends State<HabitsPage> {
             itemCount: habits.length,
             itemBuilder: (_, i) {
               final doc = habits[i];
-              final data = doc.data() as Map<String, dynamic>;
-
-              final title = data['title'] ??
-                  data['habitName'] ??
-                  'Untitled Habit'; // fallback value
-
               return Card(
                 color: Colors.grey[900],
                 child: ListTile(
-                  title: Text(title, style: const TextStyle(color: Colors.white)),
+                  title: Text(
+                    doc['habitName'],
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  subtitle: doc['description'] != null
+                      ? Text(
+                    doc['description'],
+                    style: const TextStyle(color: Colors.white70),
+                  )
+                      : null,
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
                     onPressed: () async {
                       await firestore.collection('habits').doc(doc.id).delete();
-                      setState(() {}); // refresh list
+                      setState(() {}); // Refresh the list
                     },
                   ),
                 ),

@@ -25,7 +25,7 @@ class FrequencySelectionScreen extends StatefulWidget {
 }
 
 class _FrequencySelectionScreenState extends State<FrequencySelectionScreen> {
-  int? selectedOption = 0;
+  int? selectedOption;
 
   final List<String> frequencyOptions = [
     "Every day",
@@ -33,7 +33,7 @@ class _FrequencySelectionScreenState extends State<FrequencySelectionScreen> {
     "Specific days of the month",
     "Specific days of the year",
     "Some days per period",
-    "Repeat"
+    "Repeat",
   ];
 
   void onNext() {
@@ -44,13 +44,15 @@ class _FrequencySelectionScreenState extends State<FrequencySelectionScreen> {
       return;
     }
 
+    final selectedFrequency = frequencyOptions[selectedOption!];
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => DateSelectionScreen(
           habitName: widget.habitName,
           description: widget.description,
-          frequency: frequencyOptions[selectedOption!],
+          frequency: selectedFrequency,
           condition: widget.condition,
           goal: widget.goal,
           unit: widget.unit,
@@ -86,7 +88,7 @@ class _FrequencySelectionScreenState extends State<FrequencySelectionScreen> {
             ),
             const SizedBox(height: 20),
             ...List.generate(frequencyOptions.length, (index) {
-              return RadioListTile(
+              return RadioListTile<int>(
                 activeColor: Appcolors.subtheme,
                 title: Text(
                   frequencyOptions[index],
@@ -96,7 +98,7 @@ class _FrequencySelectionScreenState extends State<FrequencySelectionScreen> {
                 groupValue: selectedOption,
                 onChanged: (value) {
                   setState(() {
-                    selectedOption = value!;
+                    selectedOption = value;
                   });
                 },
               );

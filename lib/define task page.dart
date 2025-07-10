@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'Color Compound class.dart';
-import 'Next2 DateselectionScreen.dart'; // Navigate to final saving screen
+import 'Next2 DateselectionScreen.dart'; // Navigates to the final step: date selection and save
 
 class DefineTaskPage extends StatefulWidget {
   const DefineTaskPage({super.key});
@@ -24,6 +24,7 @@ class _DefineTaskPageState extends State<DefineTaskPage> {
       return;
     }
 
+    // Send to DateSelectionScreen with default settings for task
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -31,6 +32,8 @@ class _DefineTaskPageState extends State<DefineTaskPage> {
           habitName: taskName,
           description: description,
           condition: "Default",
+          goal: null,
+          unit: null,
           time: "N/A",
           frequency: "One-time",
         ),

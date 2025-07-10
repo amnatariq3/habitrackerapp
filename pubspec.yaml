@@ -49,6 +49,9 @@ dependencies:
   iconsax: any
   package_info_plus: any
   flutter_colorpicker: ^1.0.3
+  file_picker: any
+  csv: any
+  provider: any
 
 
 
