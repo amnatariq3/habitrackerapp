@@ -1,11 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
-
 import 'Activity type page.dart';
-import 'calendar page.dart';
 import 'Color Compound class.dart';
 
 class TodayPage extends StatefulWidget {
@@ -18,6 +17,7 @@ class TodayPage extends StatefulWidget {
 class _TodayPageState extends State<TodayPage> {
   final firestore = FirebaseFirestore.instance;
   late String userId;
+  final db = FirebaseDatabase.instance;
 
   DateTime selectedDay = DateTime.now();
   String get selectedDateStr => DateFormat('yyyy-MM-dd').format(selectedDay);
@@ -28,24 +28,71 @@ class _TodayPageState extends State<TodayPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       userId = user.uid;
-    } else {
-      // If unauthenticated, redirect to login or show message
-      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LoginPage()));
     }
   }
 
-  Future<List<QueryDocumentSnapshot>> fetchTasks() async {
-    final query = await firestore
+  Future<List<Map<String, dynamic>>> fetchAllActivities() async {
+    List<Map<String, dynamic>> activities = [];
+
+    // Fetch tasks from Firestore (collection: scheduled)
+    final taskSnap = await firestore
         .collection('scheduled')
         .where('userId', isEqualTo: userId)
-        .where('startDate', isGreaterThanOrEqualTo: selectedDateStr)
+        .where('date', isEqualTo: selectedDateStr)
         .get();
-    return query.docs;
+
+    for (var doc in taskSnap.docs) {
+      final data = doc.data();
+      data['id'] = doc.id;
+      data['type'] = data['type'] ?? 'task'; // ensure 'task' type exists
+      activities.add(data);
+    }
+
+    // Fetch habits from Realtime Database
+    final habitSnap = await db.ref('users/$userId/habits').get();
+    if (habitSnap.exists) {
+      final habitsMap = habitSnap.value as Map;
+      for (var entry in habitsMap.entries) {
+        final habit = entry.value as Map;
+        if (habit['date'] == selectedDateStr) {
+          habit['id'] = entry.key;
+          habit['type'] = 'habit';
+          activities.add(Map<String, dynamic>.from(habit));
+        }
+      }
+    }
+
+    return activities;
+  }
+
+  IconData getIcon(String type) {
+    switch (type) {
+      case 'habit':
+        return Icons.self_improvement;
+      case 'recurring':
+        return Icons.repeat;
+      case 'task':
+      default:
+        return Icons.task_alt;
+    }
+  }
+
+  String getTypeLabel(String type) {
+    switch (type) {
+      case 'habit':
+        return 'Habit';
+      case 'recurring':
+        return 'Recurring Task';
+      case 'task':
+      default:
+        return 'Task';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           TableCalendar(
@@ -74,49 +121,60 @@ class _TodayPageState extends State<TodayPage> {
               weekendTextStyle: const TextStyle(color: Colors.grey),
             ),
           ),
-
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           Expanded(
-            child: FutureBuilder<List<QueryDocumentSnapshot>>(
-              future: fetchTasks(),
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: fetchAllActivities(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final docs = snapshot.data ?? [];
+                final activities = snapshot.data ?? [];
 
-                if (docs.isEmpty) {
+                if (activities.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.calendar_today, size: 60, color: Appcolors.subtheme),
-                        const SizedBox(height: 12),
-                        const Text("There is nothing scheduled",
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        Icon(Icons.event_busy, size: 80, color: Appcolors.subtheme),
+                        const SizedBox(height: 10),
+                        const Text(
+                          "There is nothing scheduled",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         const SizedBox(height: 4),
-                        const Text("Try adding new activities", style: TextStyle(color: Colors.grey)),
+                        const Text("Try adding new activities",
+                            style: TextStyle(color: Colors.grey)),
                       ],
                     ),
                   );
                 }
 
                 return ListView.builder(
-                  itemCount: docs.length,
-                  itemBuilder: (_, i) {
-                    final doc = docs[i];
-                    final title = doc['title'] ?? 'Untitled';
-                    final priority = doc['priority'] ?? 'Default';
+                  itemCount: activities.length,
+                  itemBuilder: (_, index) {
+                    final item = activities[index];
+                    final title = item['title'] ?? item['habitName'] ?? 'Untitled';
+                    final type = item['type'] ?? 'task';
 
                     return ListTile(
-                      title: Text(title),
-                      subtitle: Text("Priority: $priority"),
+                      leading: CircleAvatar(
+                        backgroundColor: Appcolors.subtheme.withOpacity(0.15),
+                        child: Icon(getIcon(type), color: Appcolors.subtheme),
+                      ),
+                      title: Text(title, style: TextStyle(color: Theme.of(context).primaryColorLight)),
+                      subtitle: Text(getTypeLabel(type),
+                          style: TextStyle(color: Appcolors.subtheme, fontSize: 12)),
                       trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
+                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                         onPressed: () async {
-                          await firestore.collection('scheduled').doc(doc.id).delete();
+                          if (type == 'habit') {
+                            await db.ref('users/$userId/habits/${item['id']}').remove();
+                          } else {
+                            await firestore.collection('scheduled').doc(item['id']).delete();
+                          }
                           setState(() {});
                         },
                       ),

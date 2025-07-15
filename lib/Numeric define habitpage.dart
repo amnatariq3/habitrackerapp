@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'color compound class.dart';
 import 'Next frequencyselection screen.dart';
 
-class DefinetimerHabitPage extends StatefulWidget {
-  const DefinetimerHabitPage({super.key});
+class DefineNumericHabitPage extends StatefulWidget {
+  const DefineNumericHabitPage({super.key});
 
   @override
-  _DefinetimerHabitPageState createState() => _DefinetimerHabitPageState();
+  _DefineNumericHabitPageState createState() => _DefineNumericHabitPageState();
 }
 
-class _DefinetimerHabitPageState extends State<DefinetimerHabitPage> {
+class _DefineNumericHabitPageState extends State<DefineNumericHabitPage> {
   final TextEditingController habitController = TextEditingController();
   final TextEditingController goalController = TextEditingController();
   final TextEditingController unitController = TextEditingController();
@@ -29,19 +29,6 @@ class _DefinetimerHabitPageState extends State<DefinetimerHabitPage> {
       );
       return;
     }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => FrequencySelectionScreen(
-          habitName: habit,
-          description: description,
-          condition: selectedCondition,
-          goal: goal,
-          unit: unit,
-        ),
-      ),
-    );
   }
 
   @override
@@ -147,11 +134,6 @@ class _DefinetimerHabitPageState extends State<DefinetimerHabitPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'e.g., Study exactly 3 hours a day.',
-                style: TextStyle(color: Colors.grey),
-              ),
               const SizedBox(height: 20),
               TextField(
                 controller: descriptionController,
@@ -214,7 +196,32 @@ class _DefinetimerHabitPageState extends State<DefinetimerHabitPage> {
                     ),
                   ),
                   TextButton(
-                    onPressed: onNextPressed,
+                    onPressed: () {
+                      final habit = habitController.text.trim();
+                      final goal = goalController.text.trim();
+                      final unit = unitController.text.trim();
+                      final description = descriptionController.text.trim();
+
+                      if (habit.isEmpty || goal.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Habit and goal are required")),
+                        );
+                        return;
+                      }
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => FrequencySelectionScreen(
+                            habitName: habit,
+                            description: description,
+                            condition: selectedCondition,
+                            goal: goal,
+                            unit: unit,
+                          ),
+                        ),
+                      );
+                    },
                     child: Text('NEXT', style: TextStyle(color: Appcolors.subtheme)),
                   ),
                 ],

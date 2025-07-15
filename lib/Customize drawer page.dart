@@ -121,9 +121,6 @@ class _CustomizePageState extends State<CustomizePage> {
     );
   }
 }
-
-
-
 class AccentColorNotifier extends ChangeNotifier {
   Color _accentColor = Colors.pink; // Default
 

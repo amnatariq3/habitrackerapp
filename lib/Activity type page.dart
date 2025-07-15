@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:untitled7/Color%20Compound%20class.dart';
-import 'package:untitled7/taskpage.dart' show NewTaskPage;
+import 'package:untitled7/taskpage.dart' show NewTaskPage, tasksPage;
 
 import 'Recurring taks page.dart';
 import 'habit category page.dart' show HabitCategoryPage;

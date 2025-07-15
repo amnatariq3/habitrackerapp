@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:untitled7/timer%20define%20habitpage.dart';
 
+
+import 'Next Numerichabitpage.dart';
+import 'Next frequencyselection screen.dart';
 import 'color compound class.dart'; // Appcolors.theme & Appcolors.subtheme
 
 class DefineHabitWithTimerPage extends StatefulWidget {
@@ -42,13 +44,6 @@ class _DefineHabitWithTimerPageState extends State<DefineHabitWithTimerPage> {
       );
       return;
     }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DefinetimerHabitPage()
-      ),
-    );
   }
 
   @override
@@ -142,8 +137,6 @@ class _DefineHabitWithTimerPageState extends State<DefineHabitWithTimerPage> {
                 ],
               ),
 
-              const SizedBox(height: 10),
-              const Text('e.g., Run at least 30 mins a day.', style: TextStyle(color: Colors.white38)),
               const SizedBox(height: 16),
 
               TextField(
@@ -215,7 +208,34 @@ class _DefineHabitWithTimerPageState extends State<DefineHabitWithTimerPage> {
                     }),
                   ),
                   TextButton(
-                    onPressed: _goNext,
+                    onPressed: () {
+                      final habit = _habitController.text.trim();
+                      final description = _descriptionController.text.trim();
+                      final goal = "${_selectedTime.hour}:${_selectedTime.minute}";
+                      final unit = "minutes"; // or "hours" if that's what you're tracking
+                      final condition = _selectedGoalType;
+
+                      if (habit.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Please enter a habit name")),
+                        );
+                        return;
+                      }
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => FrequencySelectionScreen(
+                            habitName: habit,
+                            description: description,
+                            condition: condition,
+                            goal: goal,
+                            unit: unit,
+                          ),
+                        ),
+                      );
+                    },
+
                     child: const Text('NEXT', style: TextStyle(color: Colors.white70)),
                   ),
                 ],

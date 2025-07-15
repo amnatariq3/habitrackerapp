@@ -1,15 +1,16 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/intl.dart';
+import 'package:untitled7/remender%20dialogue.dart';
+
 import 'Bottom Navigation Bar.dart';
 import 'Color Compound class.dart';
-
 
 class DateSelectionScreen extends StatefulWidget {
   final String habitName;
   final String description;
-  final String frequency;
+  final String frequency; // "One-time" or "Recurring"
   final String? condition;
   final String? goal;
   final String? unit;
@@ -31,17 +32,17 @@ class DateSelectionScreen extends StatefulWidget {
 }
 
 class _DateSelectionScreenState extends State<DateSelectionScreen> {
-  DateTime? startDate;
+  DateTime? startDate = DateTime.now();
   DateTime? endDate;
   bool isEndDateEnabled = false;
   String priority = "Default";
-  int reminders = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    startDate = DateTime.now();
-  }
+  int reminderCount = 0;
+  TimeOfDay selectedTime = TimeOfDay.now();
+  String reminderType = "Notification";
+  String reminderSchedule = "Always enabled";
+  List<String> selectedDays = [];
+  int daysBefore = 1;
 
   Future<void> pickDate({required bool isStart}) async {
     DateTime? picked = await showDatePicker(
@@ -52,40 +53,13 @@ class _DateSelectionScreenState extends State<DateSelectionScreen> {
     );
     if (picked != null) {
       setState(() {
-        if (isStart) {
-          startDate = picked;
-        } else {
-          endDate = picked;
-        }
+        if (isStart) startDate = picked;
+        else endDate = picked;
       });
     }
   }
 
-  void openPriorityDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text("Select Priority", style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: ["Default", "High", "Low"].map((level) {
-            return ListTile(
-              title: Text(level, style: const TextStyle(color: Colors.white)),
-              onTap: () {
-                setState(() {
-                  priority = level;
-                });
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  Future<void> saveToFirestore() async {
+  Future<void> saveToDatabase() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -94,44 +68,146 @@ class _DateSelectionScreenState extends State<DateSelectionScreen> {
       return;
     }
 
-    final doc = {
-      'userId': user.uid,
-      'title': widget.habitName, // ✅ Used "title" to avoid Firestore crash
+    final formattedTime = "${selectedTime.hour}:${selectedTime.minute}";
+    final isRecurring = widget.frequency.toLowerCase().contains("recurring");
+    final isHabit = widget.frequency.toLowerCase().contains("habit");
+
+    // Determine which node to store the data in
+    final String node;
+    if (isHabit) {
+      node = "habits";
+    } else if (isRecurring) {
+      node = "recurringTasks";
+    } else {
+      node = "singleTasks";
+    }
+
+    final ref = FirebaseDatabase.instance
+        .ref("users/${user.uid}/$node")
+        .push();
+
+    await ref.set({
+      'habitName': widget.habitName,
+      'task': widget.habitName,
       'description': widget.description,
-      'frequency': widget.frequency,
-      'condition': widget.condition ?? "",
-      'goal': widget.goal ?? "",
-      'unit': widget.unit ?? "",
-      'time': widget.time ?? "",
+      'condition': widget.condition ?? '',
+      'goal': widget.goal ?? '',
+      'unit': widget.unit ?? '',
+      'time': widget.time ?? '',
       'priority': priority,
-      'reminders': reminders,
+      'reminders': reminderCount,
+      'reminderTime': formattedTime,
+      'reminderType': reminderType,
+      'reminderSchedule': reminderSchedule,
+      'selectedDays': selectedDays,
+      'daysBefore': daysBefore,
       'startDate': startDate?.toIso8601String(),
       'endDate': isEndDateEnabled ? endDate?.toIso8601String() : null,
       'date': DateFormat('yyyy-MM-dd').format(startDate ?? DateTime.now()),
-      'createdAt': Timestamp.now(),
-    };
+      'type': isHabit ? 'habit' : isRecurring ? 'recurring' : 'single',
+      'createdAt': DateTime.now().toIso8601String(),
+    });
 
-    try {
-      await FirebaseFirestore.instance.collection('habits').add(doc);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Habit saved successfully!")),
-      );
-      // ✅ Go back to home screen
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(
-            isDarkMode: Theme.of(context).brightness == Brightness.dark,
-            onThemeToggle: (value) {}, // You can connect it to your actual logic if needed
-          ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Saved successfully!")),
+    );
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HomeScreen(
+          isDarkMode: Theme.of(context).brightness == Brightness.dark,
+          onThemeToggle: (_) {},
         ),
-            (route) => false,
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error saving: $e")),
-      );
-    }
+      ),
+          (route) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(toolbarHeight: 0, backgroundColor: Colors.black),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Text("When do you want to do it?",
+                style: TextStyle(fontSize: 20, color: Appcolors.subtheme, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 30),
+            buildTile(
+              icon: Icons.calendar_today,
+              label: "Start date",
+              value: "${startDate!.day}/${startDate!.month}/${startDate!.year}",
+              onTap: () => pickDate(isStart: true),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: buildTile(
+                    icon: Icons.calendar_today_outlined,
+                    label: "End date",
+                    value: endDate != null
+                        ? "${endDate!.day}/${endDate!.month}/${endDate!.year}"
+                        : "Not set",
+                    onTap: () => pickDate(isStart: false),
+                    enabled: isEndDateEnabled,
+                  ),
+                ),
+                Switch(
+                  value: isEndDateEnabled,
+                  activeColor: Appcolors.subtheme,
+                  onChanged: (val) {
+                    setState(() {
+                      isEndDateEnabled = val;
+                      if (!val) endDate = null;
+                    });
+                  },
+                ),
+              ],
+            ),
+            buildTile(
+              icon: Icons.notifications,
+              label: "Reminders",
+              value: "$reminderCount",
+              onTap: () => openReminderDialog(context),
+            ),
+            buildTile(
+              icon: Icons.flag,
+              label: "Priority",
+              value: priority,
+              onTap: () {
+                showPriorityDialog(context).then((value) {
+                  if (value != null) setState(() => priority = value);
+                });
+              },
+            ),
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("BACK", style: TextStyle(color: Colors.white70)),
+                ),
+                Row(
+                  children: List.generate(4, (i) {
+                    return Icon(Icons.circle,
+                        size: 10,
+                        color: i == 3 ? Appcolors.subtheme : Colors.grey.withOpacity(0.4));
+                  }),
+                ),
+                TextButton(
+                  onPressed: saveToDatabase,
+                  child: Text("SAVE", style: TextStyle(color: Appcolors.subtheme)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget buildTile({
@@ -144,10 +220,10 @@ class _DateSelectionScreenState extends State<DateSelectionScreen> {
     return GestureDetector(
       onTap: enabled ? onTap : null,
       child: Opacity(
-        opacity: enabled ? 1.0 : 0.5,
+        opacity: enabled ? 1 : 0.5,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          margin: const EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
             color: Colors.grey[900],
             borderRadius: BorderRadius.circular(12),
@@ -165,88 +241,41 @@ class _DateSelectionScreenState extends State<DateSelectionScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(toolbarHeight: 0, backgroundColor: Colors.black),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("When do you want to do it?",
-                style: TextStyle(color: Appcolors.subtheme, fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 30),
-            buildTile(
-              icon: Icons.calendar_today,
-              label: "Start date",
-              value: "${startDate!.day}/${startDate!.month}/${startDate!.year}",
-              onTap: () => pickDate(isStart: true),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: buildTile(
-                    icon: Icons.calendar_today_outlined,
-                    label: "End date",
-                    value: endDate != null
-                        ? "${endDate!.day}/${endDate!.month}/${endDate!.year}"
-                        : "Not set",
-                    onTap: isEndDateEnabled ? () => pickDate(isStart: false) : null,
-                    enabled: isEndDateEnabled,
-                  ),
-                ),
-                Switch(
-                  value: isEndDateEnabled,
-                  activeColor: Appcolors.subtheme,
-                  onChanged: (val) {
-                    setState(() {
-                      isEndDateEnabled = val;
-                      if (!val) endDate = null;
-                    });
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            buildTile(
-              icon: Icons.notifications,
-              label: "Reminders",
-              value: "$reminders",
-              onTap: () => setState(() => reminders++),
-            ),
-            const SizedBox(height: 10),
-            buildTile(
-              icon: Icons.flag,
-              label: "Priority",
-              value: priority,
-              onTap: openPriorityDialog,
-            ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("BACK", style: TextStyle(color: Colors.white)),
-                ),
-                Row(
-                  children: List.generate(4, (index) {
-                    return Icon(Icons.circle,
-                        size: 10,
-                        color: index == 3 ? Appcolors.subtheme : Colors.orangeAccent.withOpacity(0.4));
-                  }),
-                ),
-                TextButton(
-                  onPressed: saveToFirestore,
-                  child: Text("SAVE", style: TextStyle(color: Appcolors.subtheme)),
-                ),
-              ],
-            ),
-          ],
+  Future<String?> showPriorityDialog(BuildContext context) async {
+    int currentPriority = 1;
+    return await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.black,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text("Set a priority", style: TextStyle(color: Colors.white)),
+        content: StatefulBuilder(
+          builder: (context, setState) => Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                onPressed: () => setState(() {
+                  if (currentPriority > 1) currentPriority--;
+                }),
+                icon: const Icon(Icons.remove, color: Colors.white),
+              ),
+              Text('$currentPriority', style: TextStyle(color: Appcolors.subtheme, fontSize: 24)),
+              IconButton(
+                onPressed: () => setState(() {
+                  if (currentPriority < 10) currentPriority++;
+                }),
+                icon: const Icon(Icons.add, color: Colors.white),
+              ),
+            ],
+          ),
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL", style: TextStyle(color: Colors.white70))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, "$currentPriority"),
+            child: Text("SAVE", style: TextStyle(color: Appcolors.subtheme)),
+          ),
+        ],
       ),
     );
   }

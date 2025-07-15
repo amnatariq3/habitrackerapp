@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -7,31 +8,36 @@ import 'package:provider/provider.dart';
 import 'Customize drawer page.dart';
 import 'auth wraper page.dart';
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase initialization
+  // Initialize Firebase
   if (kIsWeb) {
     await Firebase.initializeApp(
       options: const FirebaseOptions(
-        apiKey: "AIzaSyDeMUGqXpPZHHtYGVRITmd0pEy_ktG305E",
+        apiKey: "AIzaSyDQjH-E0Z-60TlWf9gwJVcP1vQZVFxsNLs",
         authDomain: "habit-tracker-aecb5.firebaseapp.com",
         projectId: "habit-tracker-aecb5",
         storageBucket: "habit-tracker-aecb5.appspot.com",
         messagingSenderId: "400341750100",
         appId: "1:400341750100:web:b0f8be6105ee8e8207b8c1",
+        databaseURL: "https://habit-tracker-aecb5-default-rtdb.firebaseio.com",
       ),
     );
   } else {
-    await Firebase.initializeApp();
+    try {
+      await Firebase.initializeApp();
+    } catch (e) {
+      if (!e.toString().contains('already exists')) {
+        rethrow;
+      }
+    }
   }
 
-  // Load theme preferences
+  // Load saved theme and accent color
   final prefs = await SharedPreferences.getInstance();
   final isDark = prefs.getBool('darkMode') ?? false;
   final accentString = prefs.getString('accentColor') ?? Colors.pink.value.toString();
-  final Color savedAccent = Color(int.parse(accentString));
 
   runApp(
     MultiProvider(
@@ -99,7 +105,7 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  /// Creates MaterialColor from Color
+
   MaterialColor createMaterialColor(Color color) {
     List strengths = <double>[.05];
     Map<int, Color> swatch = {};
@@ -108,6 +114,7 @@ class _MyAppState extends State<MyApp> {
     for (int i = 1; i < 10; i++) {
       strengths.add(0.1 * i);
     }
+
     for (var strength in strengths) {
       final double ds = 0.5 - strength;
       swatch[(strength * 1000).round()] = Color.fromRGBO(
@@ -117,6 +124,7 @@ class _MyAppState extends State<MyApp> {
         1,
       );
     }
+
     return MaterialColor(color.value, swatch);
   }
 }

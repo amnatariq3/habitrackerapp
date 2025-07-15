@@ -55,168 +55,68 @@ class _NumericHabitPageState extends State<NumericHabitPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
+        body: SafeArea(
+        child: SingleChildScrollView( // ✅ Add this
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-              Center(
-                child: Text(
-                  'Define your habit',
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: Appcolors.subtheme,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              // ── Habit name ──
-              Text('Habit', style: TextStyle(color: Appcolors.subtheme)),
-              const SizedBox(height: 6),
-              _outlinedField(_habitCtrl, hint: 'e.g., Do not drink alcohol.'),
-
-              const SizedBox(height: 20),
-
-              // ── Goal row: dropdown + numeric ──
-              Row(
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: _dropdownGoalType(),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 5,
-                    child: _outlinedField(
-                      _goalCtrl,
-                      hint: 'Goal',
-                      keyboard: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 14),
-
-              // ── Unit row: optional + static 'a day.' ──
-              Row(
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: _outlinedField(
-                      _unitCtrl,
-                      hint: 'Unit (optional)',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    flex: 3,
-                    child: Text(
-                      'a day.',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 6),
-              const Text(
-                'e.g., Smoke less than 5 cigarettes a day.',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-
-              const SizedBox(height: 24),
-
-              // ── Description ──
-              _outlinedField(
-                _descCtrl,
-                hint: 'Description (optional)',
-                maxLines: 2,
-              ),
-
-              const SizedBox(height: 24),
-
-              // ── Extra goals tile ──
-              GestureDetector(
-                onTap: () {
-                  // TODO: open extra-goal editor
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade900,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.power_settings_new,
-                          color: Appcolors.subtheme, size: 24),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Text('Extra goals',
-                            style: TextStyle(color: Colors.white, fontSize: 16)),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 4, horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: Appcolors.subtheme.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '$_extraGoals',
-                          style: TextStyle(color: Appcolors.subtheme),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const Spacer(),
-
-              // ── Bottom bar (Back + dots + Next) ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('BACK',
-                        style: TextStyle(color: Colors.white70)),
-                  ),
-                  Row(
-                    children: List.generate(4, (i) {
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: i == 2
-                              ? Appcolors.subtheme
-                              : Appcolors.subtheme.withOpacity(0.3),
-                        ),
-                      );
-                    }),
-                  ),
-                  TextButton(
-                    onPressed: (){
-                      Navigator.push(context, MaterialPageRoute(builder: (context)=>DefineNumericHabitPage()));
-                    },
-                    child: Text('NEXT',
-                        style: TextStyle(color: Appcolors.subtheme)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min, // ✅ Prevents full expansion
+    children: [
+    const SizedBox(height: 20),
+    Center(
+    child: Text(
+    'Define your habit',
+    style: TextStyle(
+    fontSize: 20,
+    color: Appcolors.subtheme,
+    fontWeight: FontWeight.bold,
+    ),
+    ),
+    ),
+    const SizedBox(height: 30),
+    // All your existing widgets...
+    // at the end of Column, REMOVE Spacer
+    const SizedBox(height: 30), // optional spacing instead of Spacer
+    Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+    TextButton(
+    onPressed: () => Navigator.pop(context),
+    child: const Text('BACK', style: TextStyle(color: Colors.white70)),
+    ),
+    Row(
+    children: List.generate(4, (i) {
+    return Container(
+    margin: const EdgeInsets.symmetric(horizontal: 3),
+    width: 8,
+    height: 8,
+    decoration: BoxDecoration(
+    shape: BoxShape.circle,
+    color: i == 2
+    ? Appcolors.subtheme
+        : Appcolors.subtheme.withOpacity(0.3),
+    ),
     );
+    }),
+    ),
+    TextButton(
+    onPressed: () {
+    Navigator.push(context, MaterialPageRoute(
+    builder: (context) => DefineNumericHabitPage(),
+    ));
+    },
+    child: Text('NEXT', style: TextStyle(color: Appcolors.subtheme)),
+    ),
+    ],
+    ),
+    ],
+    ),
+    ),
+    ),
+    ),
+    );
+
   }
 
   // ───────────────── helper widgets ─────────────────

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'Next Numerichabitpage.dart' show DefineNumericHabitPage;
 import 'habit timer page.dart';
 import 'Numeric habit page.dart';
 import 'define habit page.dart';
@@ -50,7 +51,7 @@ class EvaluationMethodPage extends StatelessWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => NumericHabitPage()),
+                    MaterialPageRoute(builder: (_) => DefineNumericHabitPage()),
                   );
                 },
               ),

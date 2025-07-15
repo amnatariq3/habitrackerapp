@@ -105,7 +105,6 @@ class _CalendarSheetState extends State<_CalendarSheet> {
                 ),
 
                 const SizedBox(height: 20),
-                //── Bottom Action Bar ───────────────────────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

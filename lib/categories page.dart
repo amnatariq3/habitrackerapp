@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/material.dart';
 
 import 'category picker page.dart';
-import 'color compound class.dart'; // Make sure Appcolors.theme & subtheme are defined
+import 'color compound class.dart';
 
 class CategoriesPage extends StatefulWidget {
   @override
@@ -16,12 +16,12 @@ class _CategoriesPageState extends State<CategoriesPage> {
   bool isLoading = true;
 
   final List<Map<String, dynamic>> defaultCategories = [
-    {'icon': Icons.block, 'label': 'Quit a bad...', 'entries': 0},
-    {'icon': Icons.brush, 'label': 'Art', 'entries': 0},
-    {'icon': Icons.access_time, 'label': 'Task', 'entries': 0},
-    {'icon': Icons.self_improvement, 'label': 'Meditati...', 'entries': 0},
-    {'icon': Icons.school, 'label': 'Study', 'entries': 0},
-    {'icon': Icons.sports, 'label': 'Sports', 'entries': 0},
+    {'icon': Icons.block, 'label': 'Quit a bad...'},
+    {'icon': Icons.brush, 'label': 'Art'},
+    {'icon': Icons.access_time, 'label': 'Task'},
+    {'icon': Icons.self_improvement, 'label': 'Meditation'},
+    {'icon': Icons.school, 'label': 'Study'},
+    {'icon': Icons.sports, 'label': 'Sports'},
   ];
 
   @override
@@ -39,31 +39,43 @@ class _CategoriesPageState extends State<CategoriesPage> {
   }
 
   Future<void> _loadCustomCategories() async {
-    try {
-      final query = await FirebaseFirestore.instance
-          .collection('categories')
-          .where('userId', isEqualTo: userId)
-          .get();
+    final ref = FirebaseDatabase.instance.ref('users/$userId/categories');
+    final snapshot = await ref.get();
 
-      final List<Map<String, dynamic>> loaded = query.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'name': data['name'],
-          'color': Color(data['color']),
-          'icon': IconData(data['icon'], fontFamily: data['iconFont']),
-        };
-      }).toList();
+    final Map? data = snapshot.value as Map?;
+    final List<Map<String, dynamic>> loaded = [];
 
-      setState(() {
-        customCategories = loaded;
-        isLoading = false;
-      });
-    } catch (e) {
-      print('❌ Error loading categories: $e');
-      setState(() {
-        isLoading = false;
+    if (data != null) {
+      data.forEach((key, value) {
+        loaded.add({
+          'id': key,
+          'name': value['name'] ?? '',
+          'color': Color(value['color'] ?? Colors.grey.value),
+          'icon': IconData(
+            value['icon'] ?? Icons.category.codePoint,
+            fontFamily: value['iconFont'] ?? 'MaterialIcons',
+          ),
+        });
       });
     }
+
+    setState(() {
+      customCategories = loaded;
+      isLoading = false;
+    });
+  }
+
+  void _openCategoryForEdit(Map<String, dynamic> cat) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CategoryPickerPage(
+          userId: userId,
+          existingCategory: cat,
+        ),
+      ),
+    );
+    await _loadCustomCategories();
   }
 
   @override
@@ -71,7 +83,6 @@ class _CategoriesPageState extends State<CategoriesPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black87;
     final subTextColor = isDark ? Colors.white70 : Colors.grey[700];
-    final iconColor = isDark ? Colors.white : Colors.black87;
     final emptyTextColor = isDark ? Colors.white38 : Colors.grey;
 
     return Scaffold(
@@ -106,11 +117,14 @@ class _CategoriesPageState extends State<CategoriesPage> {
                 spacing: 8,
                 runSpacing: 8,
                 children: customCategories.map((cat) {
-                  return Chip(
-                    label: Text(cat['name']),
-                    backgroundColor: cat['color'],
-                    labelStyle: const TextStyle(color: Colors.white),
-                    avatar: Icon(cat['icon'], size: 18, color: Colors.white),
+                  return GestureDetector(
+                    onTap: () => _openCategoryForEdit(cat),
+                    child: Chip(
+                      label: Text(cat['name']),
+                      backgroundColor: cat['color'],
+                      labelStyle: const TextStyle(color: Colors.white),
+                      avatar: Icon(cat['icon'], size: 18, color: Colors.white),
+                    ),
                   );
                 }).toList(),
               ),
@@ -118,7 +132,7 @@ class _CategoriesPageState extends State<CategoriesPage> {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                "Default categories\nEditable for premium users",
+                "Default categories",
                 style: TextStyle(color: subTextColor),
               ),
             ),
@@ -136,18 +150,13 @@ class _CategoriesPageState extends State<CategoriesPage> {
                   ),
                   child: Column(
                     children: [
-                      Icon(cat['icon'], color: iconColor, size: 28),
+                      Icon(cat['icon'], color: textColor, size: 28),
                       const SizedBox(height: 8),
                       Text(
                         cat['label'],
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: iconColor),
+                        style: TextStyle(color: textColor),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "${cat['entries']} entries",
-                        style: TextStyle(color: iconColor.withOpacity(0.6), fontSize: 10),
-                      )
                     ],
                   ),
                 );
@@ -180,7 +189,6 @@ class _CategoriesPageState extends State<CategoriesPage> {
                   builder: (_) => CategoryPickerPage(userId: userId),
                 ),
               );
-              // Reload categories if one was added
               if (result != null) await _loadCustomCategories();
             },
             child: const Text("NEW CATEGORY", style: TextStyle(fontSize: 16)),

@@ -1,27 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:iconsax/iconsax.dart';
+
 import 'Evaluation method page.dart';
 import 'category picker page.dart';
 import 'Color Compound class.dart';
 
 class HabitCategoryPage extends StatelessWidget {
-  final List<Category> categories = [
-    Category("Quit a bad habit", Iconsax.warning_2, Colors.red),
-    Category("Art", Iconsax.paintbucket, Colors.redAccent),
-    Category("Meditation", Icons.self_improvement, Colors.purple),
-    Category("Study", Iconsax.book, Colors.purpleAccent),
-    Category("Sports", Iconsax.activity, Colors.blue),
-    Category("Entertainment", Iconsax.star, Colors.teal),
-    Category("Social", Iconsax.message, Colors.green),
-    Category("Finance", Iconsax.dollar_circle, Colors.green.shade700),
-    Category("Health", Iconsax.health, Colors.lightGreen),
-    Category("Work", Iconsax.briefcase, Colors.lightGreen.shade700),
-    Category("Nutrition", Iconsax.ranking, Colors.orange),
-    Category("Home", Iconsax.home, Colors.deepOrange),
-    Category("Outdoor", Iconsax.location, Colors.orange.shade700),
-    Category("Other", Iconsax.gift, Colors.redAccent),
-  ];
+  const HabitCategoryPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -40,16 +27,63 @@ class HabitCategoryPage extends StatelessWidget {
       body: Column(
         children: [
           Expanded(
-            child: GridView.count(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 3.5,
-              children: [
-                ...categories.map((cat) => CategoryCard(cat: cat)),
-                CreateCategoryCard(userId: userId), // ✅ passing real userId
-              ],
+            child: StreamBuilder<DatabaseEvent>(
+              stream: FirebaseDatabase.instance.ref("users/$userId/categories").onValue,
+              builder: (context, snapshot) {
+                final userCategories = <Category>[];
+
+                if (snapshot.hasData && snapshot.data?.snapshot.value != null) {
+                  final data = Map<String, dynamic>.from(
+                      (snapshot.data!.snapshot.value as Map<dynamic, dynamic>).map(
+                            (key, value) => MapEntry(key.toString(), value as Map),
+                      ));
+
+                  data.forEach((key, value) {
+                    userCategories.add(
+                      Category(
+                        value['name'] ?? 'Unnamed',
+                        IconData(
+                          value['icon'] ?? Icons.category.codePoint,
+                          fontFamily: value['iconFont'] ?? 'MaterialIcons',
+                        ),
+                        Color(value['color'] ?? Colors.grey.value),
+                      ),
+                    );
+                  });
+                }
+
+                // Static categories
+                final defaultCategories = [
+                  Category("Quit a bad habit", Iconsax.warning_2, Colors.red),
+                  Category("Art", Iconsax.paintbucket, Colors.redAccent),
+                  Category("Meditation", Icons.self_improvement, Colors.purple),
+                  Category("Study", Iconsax.book, Colors.purpleAccent),
+                  Category("Sports", Iconsax.activity, Colors.blue),
+                  Category("Entertainment", Iconsax.star, Colors.teal),
+                  Category("Social", Iconsax.message, Colors.green),
+                  Category("Finance", Iconsax.dollar_circle, Colors.green.shade700),
+                  Category("Health", Iconsax.health, Colors.lightGreen),
+                  Category("Work", Iconsax.briefcase, Colors.lightGreen.shade700),
+                  Category("Nutrition", Iconsax.ranking, Colors.orange),
+                  Category("Home", Iconsax.home, Colors.deepOrange),
+                  Category("Outdoor", Iconsax.location, Colors.orange.shade700),
+                  Category("Other", Iconsax.gift, Colors.redAccent),
+                ];
+
+                final allCategories = [...defaultCategories, ...userCategories];
+
+                return GridView.count(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 3.5,
+                  children: [
+                    ...allCategories.map((cat) => CategoryCard(cat: cat)),
+                    CreateCategoryCard(userId: userId),
+                  ],
+                );
+              },
             ),
           ),
           Padding(
@@ -67,13 +101,13 @@ class HabitCategoryPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
                     4,
                         (index) => Container(
-                      margin: EdgeInsets.symmetric(horizontal: 4),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
@@ -108,14 +142,13 @@ class CategoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // ✅ Navigate to EvaluationMethodPage
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const EvaluationMethodPage()),
         );
       },
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: Colors.grey[800],
           borderRadius: BorderRadius.circular(12),
@@ -127,15 +160,13 @@ class CategoryCard extends StatelessWidget {
                 color: cat.color,
                 borderRadius: BorderRadius.circular(8),
               ),
-              padding: EdgeInsets.all(6),
+              padding: const EdgeInsets.all(6),
               child: Icon(cat.icon, size: 18, color: Colors.white),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                cat.name,
-                style: const TextStyle(fontSize: 14, color: Colors.white),
-              ),
+              child: Text(cat.name,
+                  style: const TextStyle(fontSize: 14, color: Colors.white)),
             ),
           ],
         ),
@@ -182,12 +213,12 @@ class CreateCategoryCard extends StatelessWidget {
               padding: const EdgeInsets.all(6),
               child: const Icon(Iconsax.add, size: 18, color: Colors.white),
             ),
-            const SizedBox(width: 10),
-            Expanded(
+            const SizedBox(width: 15),
+            const Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text('Create category',
                       style: TextStyle(fontSize: 14, color: Colors.white)),
                   Text('5 available',

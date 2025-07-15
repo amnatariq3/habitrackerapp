@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:untitled7/timer%20define%20habitpage.dart';
 import 'Next Numerichabitpage.dart';
 import 'define task page.dart';
 import 'Numeric habit page.dart';
@@ -39,20 +38,6 @@ class RecuuringEvaluationMethodPage extends StatelessWidget {
                 label: 'WITH A YES OR NO',
                 description: 'Record whether you succeed with the activity or not',
                 onTap: () => _navigateTo(context,  DefineTaskPage()),
-              ),
-              const SizedBox(height: 14),
-
-              _OptionButton(
-                label: 'WITH A NUMBER',
-                description: 'Track how many times or units you do the habit per day',
-                onTap: () => _navigateTo(context, const DefineNumericHabitPage()),
-              ),
-              const SizedBox(height: 14),
-
-              _OptionButton(
-                label: 'WITH A TIMER',
-                description: 'Track how long you spend on the habit daily',
-                onTap: () => _navigateTo(context, const DefinetimerHabitPage()),
               ),
             ],
           ),
