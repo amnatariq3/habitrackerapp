@@ -77,7 +77,7 @@ class _DefineNumericHabitPageState extends State<DefineNumericHabitPage> {
               const SizedBox(height: 20),
               TextField(
                 controller: habitController,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   labelText: 'Habit',
                   labelStyle: TextStyle(color: Appcolors.subtheme),
@@ -210,4 +210,4 @@ class _DefineNumericHabitPageState extends State<DefineNumericHabitPage> {
     );
   }
 }
-// juujuh
+

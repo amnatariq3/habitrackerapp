@@ -56,6 +56,10 @@ dependencies:
   path: any
   data: any
   percent_indicator: any
+  url_launcher: any
+  audioplayers: any
+
+
 
 
 

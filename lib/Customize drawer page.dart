@@ -68,9 +68,9 @@ class _CustomizePageState extends State<CustomizePage> {
   @override
   Widget build(BuildContext context) {
     final selectedAccent = Provider.of<AccentColorNotifier>(context).accentColor;
-
+    final isDark= Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: isDark ? Colors.black : Colors.white,
       appBar: AppBar(
         title: const Text('Customize'),
         backgroundColor: Colors.black,

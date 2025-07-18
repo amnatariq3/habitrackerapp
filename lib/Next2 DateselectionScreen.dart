@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/intl.dart';
-import 'package:untitled7/remender%20dialogue.dart';
-
 import 'Bottom Navigation Bar.dart';
 import 'Color Compound class.dart';
+import 'remender dialogue.dart';
 
 class DateSelectionScreen extends StatefulWidget {
   final String habitName;
   final String description;
-  final String frequency; // "One-time" or "Recurring"
+  final String frequency; // "Habit", "Single", or "Recurring"
   final String? condition;
   final String? goal;
   final String? unit;
@@ -69,25 +68,18 @@ class _DateSelectionScreenState extends State<DateSelectionScreen> {
     }
 
     final formattedTime = "${selectedTime.hour}:${selectedTime.minute}";
-    final isRecurring = widget.frequency.toLowerCase().contains("recurring");
-    final isHabit = widget.frequency.toLowerCase().contains("habit");
+    final isHabit = widget.frequency == 'Habit';
+    final isRecurring = widget.frequency == 'Recurring';
 
-    // Determine which node to store the data in
-    final String node;
-    if (isHabit) {
-      node = "habits";
-    } else if (isRecurring) {
-      node = "recurringTasks";
-    } else {
-      node = "singleTasks";
-    }
+    final path = isHabit
+        ? 'habits'
+        : isRecurring
+        ? 'recurringTasks'
+        : 'singleTasks';
 
-    final ref = FirebaseDatabase.instance
-        .ref("users/${user.uid}/$node")
-        .push();
+    final ref = FirebaseDatabase.instance.ref("users/${user.uid}/$path").push();
 
     await ref.set({
-      'habitName': widget.habitName,
       'task': widget.habitName,
       'description': widget.description,
       'condition': widget.condition ?? '',
@@ -121,6 +113,37 @@ class _DateSelectionScreenState extends State<DateSelectionScreen> {
         ),
       ),
           (route) => false,
+    );
+  }
+
+  Widget buildTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    VoidCallback? onTap,
+    bool enabled = true,
+  }) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.5,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.grey[900],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: Appcolors.subtheme),
+              const SizedBox(width: 16),
+              Expanded(child: Text(label, style: const TextStyle(color: Colors.white))),
+              Text(value, style: TextStyle(color: Appcolors.subtheme)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -210,37 +233,6 @@ class _DateSelectionScreenState extends State<DateSelectionScreen> {
     );
   }
 
-  Widget buildTile({
-    required IconData icon,
-    required String label,
-    required String value,
-    VoidCallback? onTap,
-    bool enabled = true,
-  }) {
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: Opacity(
-        opacity: enabled ? 1 : 0.5,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-          margin: const EdgeInsets.symmetric(vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.grey[900],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: Appcolors.subtheme),
-              const SizedBox(width: 16),
-              Expanded(child: Text(label, style: const TextStyle(color: Colors.white))),
-              Text(value, style: TextStyle(color: Appcolors.subtheme)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<String?> showPriorityDialog(BuildContext context) async {
     int currentPriority = 1;
     return await showDialog<String>(
@@ -270,7 +262,9 @@ class _DateSelectionScreenState extends State<DateSelectionScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL", style: TextStyle(color: Colors.white70))),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("CANCEL", style: TextStyle(color: Colors.white70))),
           TextButton(
             onPressed: () => Navigator.pop(context, "$currentPriority"),
             child: Text("SAVE", style: TextStyle(color: Appcolors.subtheme)),

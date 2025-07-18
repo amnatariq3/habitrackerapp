@@ -1,6 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:flutter/material.dart';
 import 'Activity type page.dart';
 import 'Color Compound class.dart';
 
@@ -24,11 +24,11 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       userId = user.uid;
-      listenToSeparateTaskNodes();
+      listenToTasks();
     }
   }
 
-  void listenToSeparateTaskNodes() {
+  void listenToTasks() {
     final singleRef = FirebaseDatabase.instance.ref("users/$userId/singleTasks");
     final recurringRef = FirebaseDatabase.instance.ref("users/$userId/recurringTasks");
 
@@ -40,6 +40,7 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
           'id': key,
           'task': value['task'] ?? 'Untitled',
           'date': value['date'] ?? '',
+          'description': value['description'] ?? '',
         });
       });
       setState(() {
@@ -55,6 +56,7 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
           'id': key,
           'task': value['task'] ?? 'Untitled',
           'date': value['date'] ?? '',
+          'description': value['description'] ?? '',
         });
       });
       setState(() {
@@ -64,9 +66,8 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
   }
 
   Future<void> deleteTask(String id, bool isRecurring) async {
-    final ref = FirebaseDatabase.instance
-        .ref("users/$userId/${isRecurring ? 'recurringTasks' : 'singleTasks'}/$id");
-    await ref.remove();
+    final path = isRecurring ? 'recurringTasks' : 'singleTasks';
+    await FirebaseDatabase.instance.ref("users/$userId/$path/$id").remove();
   }
 
   Widget buildTaskList(List<Map<String, dynamic>> list, bool isRecurring) {
@@ -83,11 +84,20 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
       itemBuilder: (_, index) {
         final task = list[index];
         return Card(
-          color: isDark ? Colors.grey[900] : Colors.white,
+          color: isDark ? Colors.grey[900] : Colors.grey[100],
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: ListTile(
-            title: Text(task['task'], style: TextStyle(color: isDark ? Colors.white : Colors.black)),
-            subtitle: Text(task['date'], style: const TextStyle(color: Colors.grey)),
+            title: Text(
+              task['task'],
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              task['description'] ?? '',
+              style: const TextStyle(color: Colors.grey),
+            ),
             trailing: IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red),
               onPressed: () => deleteTask(task['id'], isRecurring),
@@ -106,6 +116,8 @@ class _TasksPageState extends State<TasksPage> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(

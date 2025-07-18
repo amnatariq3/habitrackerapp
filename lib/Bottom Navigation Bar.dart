@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 
 // Import your pages
+import 'Archieved habit page.dart';
 import 'Customize drawer page.dart';
 import 'Rate this up alert dialogue.dart';
 import 'Todaypage.dart';
@@ -38,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final List<Widget> _screens;
   final firestore = FirebaseFirestore.instance;
   late String userId;
+  late DatabaseReference habitsRef;
 
   DateTime selectedDay = DateTime.now();
   String get selectedDateStr => DateFormat('yyyy-MM-dd').format(selectedDay);
@@ -45,16 +48,15 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
 
-    // Initialize user ID
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       userId = user.uid;
+      habitsRef = FirebaseDatabase.instance.ref().child('habits').child(userId);
     } else {
-      // Handle unauthenticated user
-      // You can navigate to login screen or show error
+      // Optional: handle unauthenticated user (e.g., navigate to login)
+      print("User not logged in!");
     }
 
-    // Initialize screens
     _screens = [
       TodayPage(),
       HabitsPage(),
@@ -67,10 +69,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       CustomizePage(),
       BackupPage(),
-
     ];
   }
-
 
   final List<String> _titles = [
     'Today',
@@ -106,13 +106,40 @@ class _HomeScreenState extends State<HomeScreen> {
         return [
           IconButton(icon: Icon(Icons.search), onPressed: () => _showSearchDialog(context),),
           IconButton(icon: Icon(Icons.filter_list),  onPressed: () => _showFilterOptionsDialog(context),),
-          IconButton(icon: Icon(Icons.archive_outlined), onPressed: () =>_showArchiveDialog(context)),
+          IconButton(
+            icon: Icon(Icons.archive_outlined),
+            onPressed: () {
+              final userId = FirebaseAuth.instance.currentUser?.uid;
+              if (userId != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ArchivedHabitsPage(userId: userId),
+                  ),
+                );
+              }
+            },
+          ),
+
         ];
       case 2: // Tasks Page
         return [
           IconButton(icon: Icon(Icons.search), onPressed: () => _showSearchDialog(context),),
           IconButton(icon: Icon(Icons.filter_list), onPressed: () => _showFilterOptionsDialog(context),),
-          IconButton(icon: Icon(Icons.archive_outlined), onPressed: () =>_showArchiveDialog(context)),
+          IconButton(
+            icon: Icon(Icons.archive_outlined),
+            onPressed: () {
+              final userId = FirebaseAuth.instance.currentUser?.uid;
+              if (userId != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ArchivedHabitsPage(userId: userId),
+                  ),
+                );
+              }
+            },
+          ),
         ];
       case 3: // Categories Page
         return [
@@ -270,12 +297,50 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-  void _showArchiveDialog(BuildContext context) {
+  void _showArchiveDialog(BuildContext context, DatabaseReference habitsRef) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Archived Items"),
-        content: const Text("Here you can see or restore archived items."),
+        title: const Text("Archived Habits"),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: StreamBuilder<DatabaseEvent>(
+            stream: habitsRef.onValue,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final data = snapshot.data?.snapshot.value;
+              if (data == null || data is! Map) {
+                return const Text("No archived habits found.");
+              }
+
+              final archivedHabits = data.entries.where((e) {
+                final archived = e.value['isArchived'];
+                return archived == true || archived == 'true' || archived == 1 || archived == '1';
+              }).toList();
+
+              if (archivedHabits.isEmpty) {
+                return const Text("No archived habits found.");
+              }
+
+              return ListView.builder(
+                shrinkWrap: true,
+                itemCount: archivedHabits.length,
+                itemBuilder: (context, index) {
+                  final habit = Map<String, dynamic>.from(archivedHabits[index].value);
+                  final title = habit['title'] ?? 'Untitled';
+                  return ListTile(
+                    leading: const Icon(Icons.archive),
+                    title: Text(title),
+                    subtitle: Text("This habit is archived."),
+                  );
+                },
+              );
+            },
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -285,6 +350,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {

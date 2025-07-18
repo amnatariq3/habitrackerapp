@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -15,11 +14,10 @@ class TodayPage extends StatefulWidget {
 }
 
 class _TodayPageState extends State<TodayPage> {
-  final firestore = FirebaseFirestore.instance;
   late String userId;
   final db = FirebaseDatabase.instance;
-
   DateTime selectedDay = DateTime.now();
+
   String get selectedDateStr => DateFormat('yyyy-MM-dd').format(selectedDay);
 
   @override
@@ -34,30 +32,44 @@ class _TodayPageState extends State<TodayPage> {
   Future<List<Map<String, dynamic>>> fetchAllActivities() async {
     List<Map<String, dynamic>> activities = [];
 
-    // Fetch tasks from Firestore (collection: scheduled)
-    final taskSnap = await firestore
-        .collection('scheduled')
-        .where('userId', isEqualTo: userId)
-        .where('date', isEqualTo: selectedDateStr)
-        .get();
-
-    for (var doc in taskSnap.docs) {
-      final data = doc.data();
-      data['id'] = doc.id;
-      data['type'] = data['type'] ?? 'task'; // ensure 'task' type exists
-      activities.add(data);
-    }
-
-    // Fetch habits from Realtime Database
+    // Fetch habits
     final habitSnap = await db.ref('users/$userId/habits').get();
     if (habitSnap.exists) {
-      final habitsMap = habitSnap.value as Map;
-      for (var entry in habitsMap.entries) {
-        final habit = entry.value as Map;
+      final map = habitSnap.value as Map;
+      for (var entry in map.entries) {
+        final habit = Map<String, dynamic>.from(entry.value);
         if (habit['date'] == selectedDateStr) {
           habit['id'] = entry.key;
           habit['type'] = 'habit';
-          activities.add(Map<String, dynamic>.from(habit));
+          activities.add(habit);
+        }
+      }
+    }
+
+    // Fetch single tasks
+    final singleSnap = await db.ref('users/$userId/singleTasks').get();
+    if (singleSnap.exists) {
+      final map = singleSnap.value as Map;
+      for (var entry in map.entries) {
+        final task = Map<String, dynamic>.from(entry.value);
+        if (task['date'] == selectedDateStr) {
+          task['id'] = entry.key;
+          task['type'] = 'single';
+          activities.add(task);
+        }
+      }
+    }
+
+    // Fetch recurring tasks
+    final recurSnap = await db.ref('users/$userId/recurringTasks').get();
+    if (recurSnap.exists) {
+      final map = recurSnap.value as Map;
+      for (var entry in map.entries) {
+        final task = Map<String, dynamic>.from(entry.value);
+        if (task['date'] == selectedDateStr) {
+          task['id'] = entry.key;
+          task['type'] = 'recurring';
+          activities.add(task);
         }
       }
     }
@@ -71,7 +83,7 @@ class _TodayPageState extends State<TodayPage> {
         return Icons.self_improvement;
       case 'recurring':
         return Icons.repeat;
-      case 'task':
+      case 'single':
       default:
         return Icons.task_alt;
     }
@@ -83,9 +95,9 @@ class _TodayPageState extends State<TodayPage> {
         return 'Habit';
       case 'recurring':
         return 'Recurring Task';
-      case 'task':
+      case 'single':
       default:
-        return 'Task';
+        return 'Single Task';
     }
   }
 
@@ -99,15 +111,11 @@ class _TodayPageState extends State<TodayPage> {
             focusedDay: selectedDay,
             firstDay: DateTime.utc(2020),
             lastDay: DateTime.utc(2100),
-            startingDayOfWeek: StartingDayOfWeek.monday,
-            headerVisible: false,
             calendarFormat: CalendarFormat.week,
-            availableGestures: AvailableGestures.horizontalSwipe,
+            startingDayOfWeek: StartingDayOfWeek.monday,
             selectedDayPredicate: (day) => isSameDay(day, selectedDay),
             onDaySelected: (selected, focused) {
-              setState(() {
-                selectedDay = selected;
-              });
+              setState(() => selectedDay = selected);
             },
             calendarStyle: CalendarStyle(
               todayDecoration: BoxDecoration(
@@ -118,9 +126,11 @@ class _TodayPageState extends State<TodayPage> {
                 color: Appcolors.subtheme,
                 shape: BoxShape.circle,
               ),
-              weekendTextStyle: const TextStyle(color: Colors.grey),
             ),
+            headerVisible: false,
+            availableGestures: AvailableGestures.horizontalSwipe,
           ),
+
           const SizedBox(height: 10),
 
           Expanded(
@@ -140,10 +150,8 @@ class _TodayPageState extends State<TodayPage> {
                       children: [
                         Icon(Icons.event_busy, size: 80, color: Appcolors.subtheme),
                         const SizedBox(height: 10),
-                        const Text(
-                          "There is nothing scheduled",
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                        const Text("There is nothing scheduled",
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
                         const Text("Try adding new activities",
                             style: TextStyle(color: Colors.grey)),
@@ -156,8 +164,8 @@ class _TodayPageState extends State<TodayPage> {
                   itemCount: activities.length,
                   itemBuilder: (_, index) {
                     final item = activities[index];
-                    final title = item['title'] ?? item['habitName'] ?? 'Untitled';
-                    final type = item['type'] ?? 'task';
+                    final title = item['habitName'] ?? item['task'] ?? 'Untitled';
+                    final type = item['type'];
 
                     return ListTile(
                       leading: CircleAvatar(
@@ -170,11 +178,7 @@ class _TodayPageState extends State<TodayPage> {
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                         onPressed: () async {
-                          if (type == 'habit') {
-                            await db.ref('users/$userId/habits/${item['id']}').remove();
-                          } else {
-                            await firestore.collection('scheduled').doc(item['id']).delete();
-                          }
+                          await db.ref('users/$userId/${type == 'habit' ? 'habits' : type == 'recurring' ? 'recurringTasks' : 'singleTasks'}/${item['id']}').remove();
                           setState(() {});
                         },
                       ),

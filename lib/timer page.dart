@@ -1,103 +1,181 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class TimerPage extends StatefulWidget {
-  const TimerPage({super.key});
-
   @override
   _TimerPageState createState() => _TimerPageState();
 }
 
-class _TimerPageState extends State<TimerPage> {
-  static const int defaultSeconds = 1500; // 25 minutes
-  int _seconds = defaultSeconds;
-  Timer? _timer;
-  bool _isRunning = false;
+class _TimerPageState extends State<TimerPage> with SingleTickerProviderStateMixin {
+  // Stopwatch
+  Stopwatch _stopwatch = Stopwatch();
+  Timer? _stopwatchTimer;
 
-  void _startTimer() {
-    if (_isRunning) return;
+  // Countdown
+  int _countdownSeconds = 10;
+  Timer? _countdownTimer;
 
-    setState(() => _isRunning = true);
+  // Interval
+  int _workSeconds = 5;
+  int _restSeconds = 3;
+  bool _isWorkTime = true;
+  int _currentIntervalTime = 5;
+  Timer? _intervalTimer;
 
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
+  Future<void> _playSound() async {
+    await _audioPlayer.play(AssetSource('beep.mp3'));
+  }
+
+  void _startStopwatch() {
+    _stopwatch.start();
+    _stopwatchTimer = Timer.periodic(Duration(milliseconds: 100), (_) => setState(() {}));
+  }
+
+  void _stopStopwatch() {
+    _stopwatch.stop();
+    _stopwatchTimer?.cancel();
+  }
+
+  void _resetStopwatch() {
+    _stopwatch.reset();
+    setState(() {});
+  }
+
+  void _startCountdown() {
+    _countdownTimer = Timer.periodic(Duration(seconds: 1), (_) {
       setState(() {
-        if (_seconds > 0) {
-          _seconds--;
+        if (_countdownSeconds > 0) {
+          _countdownSeconds--;
         } else {
-          _stopTimer();
+          _playSound();
+          _stopCountdown();
         }
       });
     });
   }
 
-  void _stopTimer() {
-    _timer?.cancel();
-    setState(() => _isRunning = false);
+  void _stopCountdown() {
+    _countdownTimer?.cancel();
   }
 
-  void _resetTimer() {
-    _timer?.cancel();
-    setState(() {
-      _seconds = defaultSeconds;
-      _isRunning = false;
+  void _resetCountdown() {
+    _countdownSeconds = 10;
+    setState(() {});
+  }
+
+  void _startInterval() {
+    _intervalTimer = Timer.periodic(Duration(seconds: 1), (_) {
+      setState(() {
+        if (_currentIntervalTime > 0) {
+          _currentIntervalTime--;
+        } else {
+          _playSound();
+          _isWorkTime = !_isWorkTime;
+          _currentIntervalTime = _isWorkTime ? _workSeconds : _restSeconds;
+        }
+      });
     });
+  }
+
+  void _stopInterval() {
+    _intervalTimer?.cancel();
+  }
+
+  void _resetInterval() {
+    _isWorkTime = true;
+    _currentIntervalTime = _workSeconds;
+    setState(() {});
   }
 
   @override
   void dispose() {
-    _timer?.cancel(); // Prevent memory leak
+    _stopwatchTimer?.cancel();
+    _countdownTimer?.cancel();
+    _intervalTimer?.cancel();
     super.dispose();
-  }
-
-  String get formattedTime {
-    final minutes = _seconds ~/ 60;
-    final seconds = _seconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pomodoro Timer'),
-        backgroundColor: isDark ? Colors.black : Colors.deepOrange,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      final isDark = Theme
+          .of(context)
+          .brightness == Brightness.dark;
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: isDark ? Colors.black : Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.grey[900],
+          bottom: TabBar(
+            tabs: [
+              Tab(text: 'Stopwatch'),
+              Tab(text: 'Countdown'),
+              Tab(text: 'Interval'),
+            ],
+          ),
+        ),
+        body: TabBarView(
           children: [
-            Text(
-              formattedTime,
-              style: TextStyle(
-                fontSize: 72,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black,
-              ),
-            ),
-            const SizedBox(height: 30),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  icon: Icon(_isRunning ? Icons.pause : Icons.play_arrow),
-                  label: Text(_isRunning ? 'Pause' : 'Start'),
-                  onPressed: _isRunning ? _stopTimer : _startTimer,
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.replay),
-                  label: const Text('Reset'),
-                  onPressed: _resetTimer,
-                ),
-              ],
-            ),
+            _buildStopwatchTab(),
+            _buildCountdownTab(),
+            _buildIntervalTab(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStopwatchTab() {
+    final elapsed = _stopwatch.elapsed;
+    final timeStr = '${elapsed.inMinutes.remainder(60).toString().padLeft(2, '0')}:${elapsed.inSeconds.remainder(60).toString().padLeft(2, '0')}:${(elapsed.inMilliseconds.remainder(1000) ~/ 100).toString()}';
+
+    return _buildTimerUI(timeStr, _startStopwatch, _stopStopwatch, _resetStopwatch);
+  }
+
+  Widget _buildCountdownTab() {
+    final timeStr = _countdownSeconds.toString().padLeft(2, '0');
+
+    return _buildTimerUI(timeStr, _startCountdown, _stopCountdown, _resetCountdown);
+  }
+
+  Widget _buildIntervalTab() {
+    final timeStr = _currentIntervalTime.toString().padLeft(2, '0');
+    final status = _isWorkTime ? 'Work' : 'Rest';
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text('$status Time', style: TextStyle(color: Colors.white, fontSize: 24)),
+        SizedBox(height: 20),
+        Text(timeStr, style: TextStyle(color: Colors.white, fontSize: 64)),
+        SizedBox(height: 40),
+        _buildControlButtons(_startInterval, _stopInterval, _resetInterval),
+      ],
+    );
+  }
+
+  Widget _buildTimerUI(String timeStr, VoidCallback onStart, VoidCallback onStop, VoidCallback onReset) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(timeStr, style: TextStyle(color: Colors.white, fontSize: 64)),
+        SizedBox(height: 40),
+        _buildControlButtons(onStart, onStop, onReset),
+      ],
+    );
+  }
+
+  Widget _buildControlButtons(VoidCallback onStart, VoidCallback onStop, VoidCallback onReset) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton(onPressed: onStart, child: Text('Start')),
+        ElevatedButton(onPressed: onStop, child: Text('Stop')),
+        ElevatedButton(onPressed: onReset, child: Text('Reset')),
+      ],
     );
   }
 }

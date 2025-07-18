@@ -103,8 +103,9 @@ class _BackupPageState extends State<BackupPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark= Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: isDark ? Colors.black : Colors.white,
       appBar: AppBar(title: Text("Backup"), backgroundColor: Colors.black),
       body: ListView(
         padding: EdgeInsets.all(16),

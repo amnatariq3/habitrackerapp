@@ -1,10 +1,28 @@
+
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:table_calendar/table_calendar.dart';
-
+import 'package:untitled7/Archieved%20habit%20page.dart';
+import 'package:untitled7/priority.dart';
+import 'package:untitled7/remender%20dialogue.dart';
 import 'Color Compound class.dart';
+import 'edit habit frequency page.dart';
+
+bool isHabitArchived(dynamic value) {
+  try {
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) return value.toLowerCase() == 'true' || value == '1';
+  } catch (_) {
+    return false;
+  }
+  return false;
+}
+
 
 class HabitDetailScreen extends StatefulWidget {
   final Map habitData;
@@ -24,17 +42,69 @@ class HabitDetailScreen extends StatefulWidget {
 
 class _HabitDetailScreenState extends State<HabitDetailScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late DatabaseReference habitRef;
+  late String userId;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this, initialIndex: widget.initialTabIndex);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      userId = user.uid;
+      habitRef = FirebaseDatabase.instance.ref("users/$userId/habits/${widget.habitId}");
+    }
+  }
+
+  Future<void> _updateField(String key, dynamic value) async {
+    await habitRef.update({key: value});
+    setState(() {
+      widget.habitData[key] = value;
+    });
+  }
+
+  Future<void> _selectDate({required bool isStart}) async {
+    DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      final key = isStart ? 'startDate' : 'endDate';
+      _updateField(key, picked.toIso8601String());
+    }
+  }
+
+  Future<void> _editTextField(String title, String key, String currentValue) async {
+    final controller = TextEditingController(text: currentValue);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.black,
+        title: Text("Edit $title", style: const TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(hintText: "Enter $title", hintStyle: const TextStyle(color: Colors.grey)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL", style: TextStyle(color: Colors.grey))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text("SAVE", style: TextStyle(color: Colors.lightGreenAccent)),
+          ),
+        ],
+      ),
+    );
+    if (result != null && result.isNotEmpty) {
+      _updateField(key, result);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final habit = widget.habitData;
-
     return Scaffold(
       appBar: AppBar(title: Text(habit['habitName'] ?? 'Habit Detail')),
       body: Column(
@@ -192,31 +262,55 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> with SingleTicker
   }
 
   Widget _editTab(Map habit) {
+    final archived = isHabitArchived(widget.habitData['isArchived']);
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _editItem("Habit name", habit['habitName'], Icons.edit),
-        _editItem("Category", "Quit a bad habit", Icons.block, color: Colors.red),
-        _editItem("Description", habit['description'] ?? "-", Icons.info),
-        _editItem("Time and reminders", "0", Icons.notifications),
-        _editItem("Priority", "Default", Icons.flag),
-        _editItem("Frequency", habit['frequency'], Icons.calendar_today),
-        _editItem("Start date", "7/9/25", Icons.date_range),
-        _editItem("End date", "-", Icons.event_busy),
-        _editItem("Archive", "", Icons.download),
-        _editItem("Restart habit progress", "", Icons.refresh),
-        _editItem("Delete habit", "", Icons.delete, color: Colors.red),
-      ],
-    );
-  }
+        _editItem("Habit name", habit['habitName'], Icons.edit, onTap: () => _editTextField("Habit Name", "habitName", habit['habitName'])),
+        _editItem("Category", habit['category'] ?? "-", Icons.category, onTap: () => _editTextField("Category", "category", habit['category'] ?? "")),
+        _editItem("Description", habit['description'] ?? "-", Icons.info, onTap: () => _editTextField("Description", "description", habit['description'] ?? "")),
+        _editItem("Time and reminders", "Set reminders", Icons.notifications, onTap:()=>openReminderDialog(context) ),
+        _editItem("Priority", habit['priority'] ?? "Default", Icons.flag,onTap: ()=>showPriorityDialog(context)),
+        _editItem("Frequency", habit['frequency'], Icons.calendar_today,onTap:(){
+          Navigator.push(context, MaterialPageRoute(builder: (context)=>EditFrequencypage( habitName: habit['habitName'] ?? '',
+            description: habit['description'] ?? '',
+            habitId: widget.habitId,)));
+        }),
+        _editItem("Start date", habit['startDate'] ?? "Tap to set", Icons.date_range, onTap: () => _selectDate(isStart: true)),
+        _editItem("End date", habit['endDate'] ?? "Tap to set", Icons.event_busy, onTap: () => _selectDate(isStart: false)),
+        _editItem(
+          archived ? "Unarchive" : "Archive",
+          "",
+          Icons.download,
+          onTap: () async {
+            final confirm = await showDialog(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: Text(archived ? "Unarchive Habit" : "Archive Habit"),
+                content: Text(
+                  archived ? "Do you want to move this habit back to active habits?" : "Do you want to archive this habit?",
+                ),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text(archived ? "Unarchive" : "Archive"),
+                  ),
+                ],
+              ),
+            );
 
-  Widget _editItem(String title, String value, IconData icon, {Color? color}) {
-    return ListTile(
-      leading: Icon(icon, color: color ?? Appcolors.theme),
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      trailing: Text(value, style: TextStyle(color: color ?? Colors.white)),
-      onTap: () async {
-        if (title == "Delete habit") {
+            if (confirm == true) {
+              await habitRef.update({"isArchived": archived ? 0 : 1});
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(archived ? "Habit unarchived" : "Habit archived")),
+              );
+              Navigator.pop(context);
+            }
+          },
+        ),
+        _editItem("Delete habit", "", Icons.delete, color: Colors.red, onTap: () async {
           final confirm = await showDialog(
             context: context,
             builder: (_) => AlertDialog(
@@ -229,12 +323,20 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> with SingleTicker
             ),
           );
           if (confirm == true) {
-            final ref = FirebaseDatabase.instance.ref("users/${FirebaseAuth.instance.currentUser!.uid}/habits/${widget.habitId}");
-            await ref.remove();
+            await habitRef.remove();
             Navigator.pop(context);
           }
-        }
-      },
+        }),
+      ],
+    );
+  }
+
+  Widget _editItem(String title, String value, IconData icon, {Color? color, VoidCallback? onTap}) {
+    return ListTile(
+      leading: Icon(icon, color: color ?? Appcolors.subtheme),
+      title: Text(title, style: const TextStyle(color: Colors.lightGreenAccent)),
+      trailing: Text(value, style: TextStyle(color: color ?? Colors.white70)),
+      onTap: onTap,
     );
   }
 }

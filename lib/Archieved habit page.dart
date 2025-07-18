@@ -1,105 +1,33 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'Color Compound class.dart';
+import 'package:untitled7/color%20compound%20class.dart';
 
-class ArchivedHabitsPage extends StatefulWidget {
-  const ArchivedHabitsPage({super.key});
+class ArchivedHabitsPage extends StatelessWidget {
+  final String userId;
 
-  @override
-  State<ArchivedHabitsPage> createState() => _ArchivedHabitsPageState();
-}
+  const ArchivedHabitsPage({required this.userId});
 
-class _ArchivedHabitsPageState extends State<ArchivedHabitsPage> {
-  late final DatabaseReference habitsRef;
-  late final String userId;
-
-  @override
-  void initState() {
-    super.initState();
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      userId = user.uid;
-      habitsRef = FirebaseDatabase.instance.ref("users/$userId/habits");
-    }
-  }
-
-  Future<void> _unarchiveHabit(String habitId) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Unarchive Habit"),
-        content: const Text("Do you want to unarchive this habit?"),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Unarchive", style: TextStyle(color: Colors.green)),
-          ),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      await habitsRef.child(habitId).update({'isArchived': false});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Habit unarchived")),
-      );
-    }
-  }
-
-  Future<void> _unarchiveAllHabits(List<String> habitIds) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Unarchive All Habits"),
-        content: const Text("Are you sure you want to restore all archived habits?"),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Restore All", style: TextStyle(color: Colors.green)),
-          ),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      for (final id in habitIds) {
-        await habitsRef.child(id).update({'isArchived': false});
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("All habits unarchived")),
-      );
-    }
+  bool isHabitArchived(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) return value == 'true' || value == '1';
+    return false;
   }
 
   @override
   Widget build(BuildContext context) {
+    final habitsRef = FirebaseDatabase.instance.ref('users/$userId/habits');
+    final isDark = Theme
+        .of(context)
+        .brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text("Archived Habits"),
-        backgroundColor: Colors.black,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.restore, color: Colors.greenAccent),
-            onPressed: () async {
-              final snapshot = await habitsRef.get();
-              final data = snapshot.value;
-              if (data is Map) {
-                final archivedIds = data.entries
-                    .where((e) => e.value['isArchived'] == true)
-                    .map((e) => e.key.toString())
-                    .toList();
-                if (archivedIds.isNotEmpty) {
-                  await _unarchiveAllHabits(archivedIds);
-                }
-              }
-            },
-            tooltip: "Restore All",
-          )
-        ],
+        title: const Text('Archived Habits', style: TextStyle(color: Colors.black),),
+        backgroundColor: Appcolors.subtheme,
       ),
-      body: StreamBuilder(
+      backgroundColor: isDark ? Colors.black : Colors.white,
+      body: StreamBuilder<DatabaseEvent>(
         stream: habitsRef.onValue,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -107,19 +35,26 @@ class _ArchivedHabitsPageState extends State<ArchivedHabitsPage> {
           }
 
           final data = snapshot.data?.snapshot.value;
+
           if (data == null || data is! Map) {
-            return const Center(
-              child: Text("No archived habits found", style: TextStyle(color: Colors.white70)),
+            return Center(
+              child: Text("No archived habits found", style: TextStyle(color: Appcolors.subtheme)),
             );
           }
 
-          final archivedHabits = data.entries
-              .where((entry) => entry.value['isArchived'] == true)
-              .toList();
+          final archivedHabits = <MapEntry<String, dynamic>>[];
+
+          data.forEach((key, value) {
+            if (value is Map) {
+              if (isHabitArchived(value['isArchived'])) {
+                archivedHabits.add(MapEntry(key, value));
+              }
+            }
+          });
 
           if (archivedHabits.isEmpty) {
-            return const Center(
-              child: Text("No archived habits found", style: TextStyle(color: Colors.white70)),
+            return Center(
+              child: Text("No archived habits found", style: TextStyle(color: Appcolors.subtheme)),
             );
           }
 
@@ -128,17 +63,59 @@ class _ArchivedHabitsPageState extends State<ArchivedHabitsPage> {
             itemBuilder: (context, index) {
               final habitId = archivedHabits[index].key;
               final habit = Map<String, dynamic>.from(archivedHabits[index].value);
+
+              final title = habit['habitName'] ?? '';
+              final frequency = habit['frequency'] ?? '';
+              final linkCount = habit['linkCount'] ?? 0;
+              final doneCount = habit['doneCount'] ?? 0;
+              final completionRate = habit['completionRate'] ?? 0;
+
               return Card(
                 color: Colors.grey[900],
-                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                margin: const EdgeInsets.all(12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 child: ListTile(
-                  title: Text(habit['habitName'], style: const TextStyle(color: Colors.white)),
-                  subtitle: Text(habit['description'] ?? '-', style: const TextStyle(color: Colors.white70)),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.unarchive, color: Colors.green),
-                    onPressed: () => _unarchiveHabit(habitId),
+                  title: Text(title, style: const TextStyle(color: Colors.white)),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(frequency, style: const TextStyle(color: Colors.red)),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.link, size: 18, color: Colors.red),
+                          Text(' $linkCount  ', style: const TextStyle(color: Colors.white)),
+                          const Icon(Icons.check_circle, size: 18, color: Colors.red),
+                          Text(' $doneCount  ', style: const TextStyle(color: Colors.white)),
+                          const SizedBox(width: 10),
+                          Text('$completionRate%', style: const TextStyle(color: Colors.white)),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.calendar_month, color: Colors.white),
+                            onPressed: () {},
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.bar_chart, color: Colors.white),
+                            onPressed: () {},
+                          ),
+                          PopupMenuButton(
+                            icon: const Icon(Icons.more_vert, color: Colors.white),
+                            itemBuilder: (context) => [
+                              PopupMenuItem(
+                                child: const Text("Unarchive"),
+                                onTap: () async {
+                                  await habitsRef.child(habitId).update({'isArchived': false});
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
+                  trailing: const Icon(Icons.star, color: Colors.orange),
                 ),
               );
             },
